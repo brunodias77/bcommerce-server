@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <Compile Remove="Entities\**" />
+      <Compile Remove="Abstractions\Identifier.cs" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <EmbeddedResource Remove="Entities\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="Entities\**" />
+    </ItemGroup>
+
+</Project>
