@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "/Users/brunodias/Documents/Programacao/Codigos/C#/Bcommerce/tests/Unit/Bcommerce.UnitTest/Bcommerce.UnitTest.csproj": {}
+    "/Users/brunodias/Documents/programacao/codigos/dotnet/bcommerce-server/tests/Unit/Bcommerce.UnitTest/Bcommerce.UnitTest.csproj": {}
   },
   "projects": {
-    "/Users/brunodias/Documents/Programacao/Codigos/C#/Bcommerce/tests/Unit/Bcommerce.UnitTest/Bcommerce.UnitTest.csproj": {
+    "/Users/brunodias/Documents/programacao/codigos/dotnet/bcommerce-server/tests/Unit/Bcommerce.UnitTest/Bcommerce.UnitTest.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/Users/brunodias/Documents/Programacao/Codigos/C#/Bcommerce/tests/Unit/Bcommerce.UnitTest/Bcommerce.UnitTest.csproj",
+        "projectUniqueName": "/Users/brunodias/Documents/programacao/codigos/dotnet/bcommerce-server/tests/Unit/Bcommerce.UnitTest/Bcommerce.UnitTest.csproj",
         "projectName": "Bcommerce.UnitTest",
-        "projectPath": "/Users/brunodias/Documents/Programacao/Codigos/C#/Bcommerce/tests/Unit/Bcommerce.UnitTest/Bcommerce.UnitTest.csproj",
+        "projectPath": "/Users/brunodias/Documents/programacao/codigos/dotnet/bcommerce-server/tests/Unit/Bcommerce.UnitTest/Bcommerce.UnitTest.csproj",
         "packagesPath": "/Users/brunodias/.nuget/packages/",
-        "outputPath": "/Users/brunodias/Documents/Programacao/Codigos/C#/Bcommerce/tests/Unit/Bcommerce.UnitTest/obj/",
+        "outputPath": "/Users/brunodias/Documents/programacao/codigos/dotnet/bcommerce-server/tests/Unit/Bcommerce.UnitTest/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/Users/brunodias/.nuget/NuGet/NuGet.Config"
@@ -76,7 +76,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/8.0.201/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/8.0.410/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

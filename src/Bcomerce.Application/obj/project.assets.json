@@ -13,11 +13,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/Users/brunodias/Documents/Programacao/Codigos/C#/Bcommerce/src/Bcomerce.Application/Bcomerce.Application.csproj",
+      "projectUniqueName": "/Users/brunodias/Documents/programacao/codigos/dotnet/bcommerce-server/src/Bcomerce.Application/Bcomerce.Application.csproj",
       "projectName": "Bcomerce.Application",
-      "projectPath": "/Users/brunodias/Documents/Programacao/Codigos/C#/Bcommerce/src/Bcomerce.Application/Bcomerce.Application.csproj",
+      "projectPath": "/Users/brunodias/Documents/programacao/codigos/dotnet/bcommerce-server/src/Bcomerce.Application/Bcomerce.Application.csproj",
       "packagesPath": "/Users/brunodias/.nuget/packages/",
-      "outputPath": "/Users/brunodias/Documents/Programacao/Codigos/C#/Bcommerce/src/Bcomerce.Application/obj/",
+      "outputPath": "/Users/brunodias/Documents/programacao/codigos/dotnet/bcommerce-server/src/Bcomerce.Application/obj/",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "/Users/brunodias/.nuget/NuGet/NuGet.Config"
@@ -64,7 +64,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/8.0.201/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/8.0.410/PortableRuntimeIdentifierGraph.json"
       }
     }
   }

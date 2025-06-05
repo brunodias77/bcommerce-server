@@ -7,16 +7,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Compile Remove="Entities\**" />
       <Compile Remove="Abstractions\Identifier.cs" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <EmbeddedResource Remove="Entities\**" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <None Remove="Entities\**" />
     </ItemGroup>
 
 </Project>

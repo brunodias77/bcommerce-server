@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "oThs6BESW20=",
+  "dgSpecHash": "tfHEWv4vlzE=",
   "success": true,
-  "projectFilePath": "/Users/brunodias/Documents/Programacao/Codigos/C#/Bcommerce/src/Bcommerce.Domain/Bcommerce.Domain.csproj",
+  "projectFilePath": "/Users/brunodias/Documents/programacao/codigos/dotnet/bcommerce-server/src/Bcommerce.Domain/Bcommerce.Domain.csproj",
   "expectedPackageFiles": [],
   "logs": []
 }

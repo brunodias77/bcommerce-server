@@ -1,0 +1,74 @@
+# Build e artefatos temporários
+bin/
+obj/
+[Bb]uild/
+[Ll]og/
+*.log
+
+# Diretórios de publicação
+publish/
+out/
+artifacts/
+
+# Arquivos de usuário
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Arquivos do Visual Studio
+.vscode/
+.vs/
+*.vsp
+*.vspscc
+*.vssscc
+
+# Arquivos de backup do Rider
+.idea/
+*.DotSettings.user
+
+# Arquivos do pacote NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+# Se você estiver usando pacote com referência direta
+project.lock.json
+project.fragment.lock.json
+
+# Arquivos do sistema
+*.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Cache de Testes e Coverage
+TestResults/
+*.coverage
+*.coveragexml
+*.testsettings
+*.vsmdi
+*.psess
+
+# Arquivos gerados por ferramentas
+Generated_Code/
+*.g.cs
+*.g.i.cs
+
+# Secrets / Credenciais
+secrets.json
+appsettings.*.json
+
+# Configurações de Containers e Debuggers
+docker-compose.override.yml
+.env
+
+# Configuração do ReSharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+
+# Outros
+*.sqlite
+*.db
+*.mdf
+*.ldf
