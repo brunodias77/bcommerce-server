@@ -33,7 +33,8 @@ public class Client : AggregateRoot
             string passwordHash,
             string? cpf,
             DateOnly? dateOfBirth,
-            bool newNewsletterOptIn
+            bool newNewsletterOptIn,
+            IValidationHandler validationHandler
         )
     {
         var client = new Client
@@ -52,6 +53,14 @@ public class Client : AggregateRoot
             EmailVerified = null,
             DeletedAt = null
         };
+        
+        client.Validate(validationHandler);
+
+       if (!validationHandler.HasError())
+       {
+           // TODO: CRIAR UM EVENT
+           
+       }
         return client;
     }
     

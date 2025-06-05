@@ -1,6 +1,6 @@
 namespace Bcommerce.Infrastructure.Data.Models;
 
-file class ClientDataModel
+public class ClientDataModel
 {
     public Guid client_id { get; set; }
     public string first_name { get; set; } = string.Empty;

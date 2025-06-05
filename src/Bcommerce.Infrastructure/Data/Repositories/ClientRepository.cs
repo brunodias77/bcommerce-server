@@ -1,9 +1,11 @@
 using Bcommerce.Domain.Abstractions;
 using Bcommerce.Domain.Clients;
+using Bcommerce.Domain.Clients.Repositories;
+using Dapper;
 
 namespace Bcommerce.Infrastructure.Data.Repositories;
 
-public class ClientRepository : IRepository<Client>
+public class ClientRepository : IClientRepository
 {
     private readonly IUnitOfWork _uow;
 
@@ -13,9 +15,42 @@ public class ClientRepository : IRepository<Client>
     }
 
 
-    public Task Insert(Client aggregate, CancellationToken cancellationToken)
+    public async Task  Insert(Client aggregate, CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        const string sql = @"
+                 INSERT INTO client (
+                     client_id, first_name, last_name, email, email_verified_at, 
+                     phone, password_hash, cpf, date_of_birth, newsletter_opt_in, 
+                     status, created_at, updated_at, deleted_at
+                 ) VALUES (
+                     @Id, @FirstName, @LastName, @Email, @EmailVerifiedAt, 
+                     @Phone, @PasswordHash, @Cpf, @DateOfBirth, @NewsletterOptIn, 
+                     @StatusString::client_status_enum, @CreatedAt, @UpdatedAt, @DeletedAt
+                 )";
+            
+        var parameters = new
+             {
+                 aggregate.Id,
+                 aggregate.FirstName,
+                 aggregate.LastName,
+                 aggregate.Email,
+                 aggregate.EmailVerified,
+                 aggregate.PhoneNumber,
+                 aggregate.PasswordHash,
+                 aggregate.Cpf,
+                 DateOfBirth = aggregate.DateOfBirth, // Assumindo Npgsql 6+ para DateOnly
+                 aggregate.NewsletterOptIn,
+                 StatusString = aggregate.Status.ToString().ToLowerInvariant(), // 'ativo', 'inativo', 'banido'
+                 aggregate.CreatedAt,
+                 aggregate.UpdatedAt,
+                 aggregate.DeletedAt
+             };
+
+             await _uow.Connection.ExecuteAsync(new CommandDefinition(
+                 sql,
+                 parameters,
+                 transaction: _uow.Transaction,
+                 cancellationToken: cancellationToken));
     }
 
     public Task<Client> Get(Guid id, CancellationToken cancellationToken)
