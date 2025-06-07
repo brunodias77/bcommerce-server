@@ -23,7 +23,6 @@ public record CreateClientOutput(
         }
 
         return new CreateClientOutput(
-            // client.Id, // Adicione se ClientId estiver no record
             client.FirstName,
             client.LastName,
             client.Email,

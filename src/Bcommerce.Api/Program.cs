@@ -31,6 +31,7 @@ void ConfigureServices(IServiceCollection services, IConfiguration configuration
     services.AddApplication(configuration);
     services.AddEndpointsApiExplorer();
     services.AddSwaggerGen();
+    Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true;
 }
 
 void ConfigureMiddleware(WebApplication app)

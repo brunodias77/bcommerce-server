@@ -1,5 +1,7 @@
 using Bcommerce.Domain.Clients.Repositories;
+using Bcommerce.Domain.Security;
 using Bcommerce.Infrastructure.Data.Repositories;
+using Bcommerce.Infrastructure.Security;
 
 namespace Bcommerce.Api.Configurations;
 
@@ -8,7 +10,7 @@ public static class InfraDependencyInjection
     public static void AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         AddRepositories(services);
-        // AddPasswordEncrypter(services, configuration); // ✅ ADICIONE ESTA LINHA
+        AddPasswordEncrypter(services, configuration);
         // AddLoggedCustomer(services, configuration);
         // AddToken(services, configuration);
     }
@@ -21,10 +23,10 @@ public static class InfraDependencyInjection
     }
     
     
-    // private static void AddPasswordEncrypter(IServiceCollection services, IConfiguration configuration)
-    // {
-    //     services.AddScoped<IPasswordEncripter, PasswordEncripter>();
-    // }
+    private static void AddPasswordEncrypter(IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddScoped<IPasswordEncripter, PasswordEncripter>();
+    }
     //
     // private static void AddLoggedCustomer(IServiceCollection services, IConfiguration configuration)
     // {

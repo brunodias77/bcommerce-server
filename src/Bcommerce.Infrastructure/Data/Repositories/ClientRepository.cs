@@ -67,6 +67,15 @@ public class ClientRepository : IClientRepository
     {
         throw new NotImplementedException();
     }
+
+    public Task<Client> GetByEmail(string email, CancellationToken cancellationToken)
+    {
+        const string sql = @"
+                 SELECT c.email client c WHERE c.email = @Email";
+        
+        return _uow.Connection.QuerySingleOrDefaultAsync<Client>(sql, new { Email = email });
+    }
+
 }
 
 

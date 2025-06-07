@@ -30,6 +30,16 @@ public class CreateClientUseCase : ICreateClientUseCase
         {
             return Result<CreateClientOutput, Notification>.Fail(Notification.Create(new Error("Erro desconhecido")));
         }
+        await _uow.Begin();
+        try
+        {
+            var emailExists = await _clientRepository.GetByEmail(input.Email, CancellationToken.None);
+            
+        }
+        catch (Exception e)
+        {
+            
+        }
 
         string passwordHash;
         try
@@ -47,9 +57,9 @@ public class CreateClientUseCase : ICreateClientUseCase
             input.LastName,
             input.Email,
             input.PhoneNumber,
-            passwordHash,
-            input.Cpf,
-            input.DateOfBirth,
+            passwordHash,          
+            null,
+            null,
             input.NewsletterOptIn,
             clientValidation
         );
@@ -57,14 +67,13 @@ public class CreateClientUseCase : ICreateClientUseCase
         if (clientValidation.HasError())
         {
             // Quero mandar os erros que estao no clientValidation
-            Result<CreateClientOutput, Notification>.Fail(Notification.Create(new Error("Existem Erros")));
+            Result<CreateClientOutput, Notification>.Fail(clientValidation);
         }
-        
         // Verificar se o email do client ja existe na base de dados
-
+        await _uow.Begin();
         try
         {
-            
+            var emailExists = await _clientRepository.GetByEmail(input.Email, CancellationToken.None);
         }
         catch (DbException dbEx)
         {
