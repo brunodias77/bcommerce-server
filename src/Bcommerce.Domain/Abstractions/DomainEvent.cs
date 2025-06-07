@@ -1,10 +1,8 @@
 namespace Bcommerce.Domain.Abstractions;
 
-public class DomainEvent
+public abstract record DomainEvent
 {
-    public DateTime OccuredOn { get; set; }
-    protected DomainEvent()
-    {
-        OccuredOn = DateTime.Now;
-    }
+    // Use "init" para tornar a propriedade imutável após a criação
+    // e inicialize diretamente. Use UtcNow para consistência.
+    public DateTime OccurredOn { get; init; } = DateTime.UtcNow;
 }

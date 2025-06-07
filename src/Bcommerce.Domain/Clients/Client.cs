@@ -1,5 +1,6 @@
 using Bcommerce.Domain.Abstractions;
 using Bcommerce.Domain.Clients.enums;
+using Bcommerce.Domain.Clients.Events;
 using Bcommerce.Domain.Clients.Validators;
 using Bcommerce.Domain.Validations;
 
@@ -58,8 +59,7 @@ public class Client : AggregateRoot
 
        if (!validationHandler.HasError())
        {
-           // TODO: CRIAR UM EVENT
-           
+           client.RaiseEvent(new ClientCreatedEvent(client.Id, client.Email, client.FirstName));
        }
         return client;
     }
@@ -105,6 +105,17 @@ public class Client : AggregateRoot
     public override void Validate(IValidationHandler handler)
     {
         new ClientValidator(this, handler).Validate();
+    }
+    
+    // NOVO: Método para executar a ação de verificação
+    public void VerifyEmail()
+    {
+        // Se já foi verificado, não faz nada
+        if (EmailVerified.HasValue) return;
+
+        EmailVerified = DateTime.UtcNow;
+        UpdatedAt = DateTime.UtcNow;
+        // Opcional: Você poderia disparar um evento "EmailVerifiedEvent" aqui também.
     }
 }
 

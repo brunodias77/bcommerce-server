@@ -3,6 +3,7 @@ using Bcommerce.Domain.Clients;
 namespace Bcomerce.Application.UseCases.Clients.Create;
 
 public record CreateClientOutput(
+    Guid Id, 
     string FirstName,
     string LastName,
     string Email,
@@ -23,6 +24,7 @@ public record CreateClientOutput(
         }
 
         return new CreateClientOutput(
+            client.Id,
             client.FirstName,
             client.LastName,
             client.Email,

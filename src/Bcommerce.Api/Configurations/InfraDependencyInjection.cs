@@ -1,7 +1,11 @@
+using Bcommerce.Domain.Abstractions;
 using Bcommerce.Domain.Clients.Repositories;
 using Bcommerce.Domain.Security;
+using Bcommerce.Domain.Services;
 using Bcommerce.Infrastructure.Data.Repositories;
+using Bcommerce.Infrastructure.Events;
 using Bcommerce.Infrastructure.Security;
+using Bcommerce.Infrastructure.Services;
 
 namespace Bcommerce.Api.Configurations;
 
@@ -11,22 +15,37 @@ public static class InfraDependencyInjection
     {
         AddRepositories(services);
         AddPasswordEncrypter(services, configuration);
+        AddServices(services, configuration);
+        AddEvents(services, configuration);
         // AddLoggedCustomer(services, configuration);
         // AddToken(services, configuration);
     }
 
     private static void AddRepositories(IServiceCollection services)
     {
+        services.AddScoped<IEmailVerificationTokenRepository, EmailVerificationTokenRepository>();
         services.AddScoped<IClientRepository, ClientRepository>();
         services.AddScoped<IUnitOfWork, DapperUnitOfWork>();
-
     }
-    
+
+    private static void AddServices(IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddSingleton<IEmailService, ConsoleEmailService>(); // Singleton para o serviço de console
+        services.AddScoped<ITokenService, JwtTokenService>();
+    }
     
     private static void AddPasswordEncrypter(IServiceCollection services, IConfiguration configuration)
     {
         services.AddScoped<IPasswordEncripter, PasswordEncripter>();
     }
+
+    private static void AddEvents(IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddScoped<IDomainEventPublisher, DomainEventPublisher>();
+
+    }
+    
+    
     //
     // private static void AddLoggedCustomer(IServiceCollection services, IConfiguration configuration)
     // {
