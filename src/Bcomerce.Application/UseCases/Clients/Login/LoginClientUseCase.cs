@@ -23,7 +23,6 @@ public class LoginClientUseCase : ILoginClientUseCase
     {
         var notification = Notification.Create();
         
-        
         var client = await _clientRepository.GetByEmail(input.Email, CancellationToken.None);
         // Mensagem de erro genérica para não informar se o e-mail existe ou se a senha está errada
         var invalidCredentialsError = new Error("E-mail ou senha inválidos.");
@@ -52,7 +51,7 @@ public class LoginClientUseCase : ILoginClientUseCase
         var token = _tokenService.GenerateToken(client);
         var expiresAt = DateTime.UtcNow.AddMinutes(60); 
         var output = new LoginClientOutput(token, expiresAt);
-
+        
         return Result<LoginClientOutput, Notification>.Ok(output);
     }
 }

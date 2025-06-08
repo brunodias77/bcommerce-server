@@ -1,8 +1,10 @@
 using Bcomerce.Application.UseCases.Clients.AddAddress;
 using Bcomerce.Application.UseCases.Clients.Create;
+using Bcomerce.Application.UseCases.Clients.DeleteAddress;
 using Bcomerce.Application.UseCases.Clients.GetMyProfile;
 using Bcomerce.Application.UseCases.Clients.ListAddresses;
 using Bcomerce.Application.UseCases.Clients.Login;
+using Bcomerce.Application.UseCases.Clients.UpdateAddress;
 using Bcomerce.Application.UseCases.Clients.VerifyEmail;
 using Bcommerce.Application.Clients.Events;
 using Bcommerce.Domain.Abstractions;
@@ -27,6 +29,8 @@ public static class ApplicationDependencyInjection
         services.AddScoped<IGetMyProfileUseCase, GetMyProfileUseCase>();
         services.AddScoped<IAddAddressUseCase, AddAddressUseCase>();
         services.AddScoped<IListMyAddressesUseCase, ListMyAddressesUseCase>();
+        services.AddScoped<IUpdateAddressUseCase, UpdateAddressUseCase>();
+        services.AddScoped<IDeleteAddressUseCase, DeleteAddressUseCase>();
     }
 
     private static void AddEvents(IServiceCollection services, IConfiguration configuration)

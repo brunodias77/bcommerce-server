@@ -84,7 +84,10 @@ public class Address : Entity{
             UpdatedAt = updatedAt,
             DeletedAt = deletedAt
         };
+    
+        // Atribui o ID específico
         address.Id = id;
+    
         return address;
     }
 
@@ -108,6 +111,27 @@ public class Address : Entity{
         if (DeletedAt.HasValue) return;
         DeletedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
+    }
+    
+    // Dentro da classe Address
+
+    public void Update(
+        AddressType type, string postalCode, string street,
+        string number, string? complement, string neighborhood,
+        string city, string stateCode, bool isDefault, IValidationHandler handler)
+    {
+        Type = type;
+        PostalCode = postalCode;
+        Street = street;
+        Number = number;
+        Complement = complement;
+        Neighborhood = neighborhood;
+        City = city;
+        StateCode = stateCode;
+        IsDefault = isDefault;
+        UpdatedAt = DateTime.UtcNow;
+
+        Validate(handler); // Re-valida a entidade com os novos dados
     }
     
     public override void Validate(IValidationHandler handler)

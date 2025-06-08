@@ -117,6 +117,8 @@ public class Client : AggregateRoot
         UpdatedAt = DateTime.UtcNow;
         // Opcional: Você poderia disparar um evento "EmailVerifiedEvent" aqui também.
     }
+    
+    
 }
 
 

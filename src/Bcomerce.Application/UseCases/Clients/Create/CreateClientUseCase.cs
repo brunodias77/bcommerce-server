@@ -34,68 +34,129 @@ public class CreateClientUseCase : ICreateClientUseCase
     public async Task<Result<CreateClientOutput, Notification>> Execute(CreateClientInput input)
     {
         var notification = Notification.Create();
-        if (string.IsNullOrWhiteSpace(input.Password))
-        {
-            notification.Append(new Error("A senha nao pode estar vazia!"));
-            return Result<CreateClientOutput, Notification>.Fail(notification);
-        }
+    
+    // 1. Validação de input básica (ex: senha não pode ser vazia)
+    if (string.IsNullOrWhiteSpace(input.Password))
+    {
+        notification.Append(new Error("A senha nao pode estar vazia!"));
+        return Result<CreateClientOutput, Notification>.Fail(notification);
+    }
 
-        var passwordHash = _passwordEncripter.Encrypt(input.Password);
-        var client = Client.NewClient(
-            input.FirstName,
-            input.LastName,
-            input.Email,
-            input.PhoneNumber,
-            passwordHash,
-            null,
-            null,
-            input.NewsletterOptIn,
-            notification
-        );
+    // 2. VERIFICA SE O E-MAIL EXISTE PRIMEIRO (operação de leitura, sem transação)
+    var emailExists = await _clientRepository.GetByEmail(input.Email, CancellationToken.None);
+    if (emailExists != null)
+    {
+        notification.Append(new Error("O e-mail informado já está em uso."));
+        return Result<CreateClientOutput, Notification>.Fail(notification);
+    }
+
+    // 3. APENAS SE O E-MAIL ESTIVER LIVRE, prossiga com a criação
+    var passwordHash = _passwordEncripter.Encrypt(input.Password);
+    var client = Client.NewClient(
+        input.FirstName,
+        input.LastName,
+        input.Email,
+        input.PhoneNumber,
+        passwordHash,
+        null, // cpf
+        null, // date of birth
+        input.NewsletterOptIn,
+        notification
+    );
+    
+    // 4. Valida a entidade
+    if (notification.HasError())
+    {
+        return Result<CreateClientOutput, Notification>.Fail(notification);
+    }
+    
+    // 5. Inicia a transação apenas para a operação de escrita
+    await _uow.Begin();
+    try
+    {
+        await _clientRepository.Insert(client, CancellationToken.None);
+        await _uow.Commit();
         
-        // 4. Se a validação da entidade falhar, retorne os erros
-        if (notification.HasError())
+        foreach (var domainEvent in client.Events)
         {
-            return Result<CreateClientOutput, Notification>.Fail(notification);
+            await _publisher.PublishAsync(domainEvent, CancellationToken.None);
         }
-        await _uow.Begin();
-        try
+
+        return Result<CreateClientOutput, Notification>.Ok(CreateClientOutput.FromClient(client));
+    }
+    catch (Exception e)
+    {
+        if (_uow.HasActiveTransaction)
         {
-            // 5. Verifique se o e-mail já existe DENTRO da transação
-            var emailExists = await _clientRepository.GetByEmail(input.Email, CancellationToken.None);
-            if (emailExists != null)
-            {
-                await _uow.Rollback();
-                notification.Append(new Error("O e-mail informado já está em uso."));
-                return Result<CreateClientOutput, Notification>.Fail(notification);
-            }
-
-            // 6. Insira o cliente no banco de dados
-            await _clientRepository.Insert(client, CancellationToken.None);
-
-            // 7. Confirme a transação
-            await _uow.Commit();
-            
-            // Publica todos os eventos que foram levantados na entidade
-            foreach (var domainEvent in client.Events)
-            {
-                await _publisher.PublishAsync(domainEvent, CancellationToken.None);
-            }
-
-            // 8. Retorne sucesso
-            return Result<CreateClientOutput, Notification>.Ok(CreateClientOutput.FromClient(client));
+            await _uow.Rollback();
         }
-        catch (Exception e)
-        {
-            // 9. Em caso de qualquer outra exceção, reverta a transação
-            if (_uow.HasActiveTransaction)
-            {
-                await _uow.Rollback();
-            }
-            _logger.LogError(e, "Ocorreu um erro inesperado ao tentar criar o cliente com e-mail {ClientEmail}", input.Email);
-            var error = Notification.Create(new Error("Ocorreu um erro inesperado ao criar o cliente."));
-            return Result<CreateClientOutput, Notification>.Fail(error);
-        }
+        _logger.LogError(e, "Ocorreu um erro inesperado ao tentar criar o cliente com e-mail {ClientEmail}", input.Email);
+        var error = Notification.Create(new Error("Erro ao salvar o cliente."));
+        return Result<CreateClientOutput, Notification>.Fail(error);
+    }
+        // var notification = Notification.Create();
+        // if (string.IsNullOrWhiteSpace(input.Password))
+        // {
+        //     notification.Append(new Error("A senha nao pode estar vazia!"));
+        //     return Result<CreateClientOutput, Notification>.Fail(notification);
+        // }
+        //
+        // var passwordHash = _passwordEncripter.Encrypt(input.Password);
+        // var client = Client.NewClient(
+        //     input.FirstName,
+        //     input.LastName,
+        //     input.Email,
+        //     input.PhoneNumber,
+        //     passwordHash,
+        //     null,
+        //     null,
+        //     input.NewsletterOptIn,
+        //     notification
+        // );
+        //
+        // // 4. Se a validação da entidade falhar, retorne os erros
+        // if (notification.HasError())
+        // {
+        //     return Result<CreateClientOutput, Notification>.Fail(notification);
+        // }
+        // await _uow.Begin();
+        // try
+        // {
+        //     // 5. Verifique se o e-mail já existe DENTRO da transação
+        //     var emailExists = await _clientRepository.GetByEmail(input.Email, CancellationToken.None);
+        //     if (emailExists != null)
+        //     {
+        //         await _uow.Rollback();
+        //         notification.Append(new Error("O e-mail informado já está em uso."));
+        //         return Result<CreateClientOutput, Notification>.Fail(notification);
+        //     }
+        //
+        //     // 6. Insira o cliente no banco de dados
+        //     await _clientRepository.Insert(client, CancellationToken.None);
+        //
+        //     // 7. Confirme a transação
+        //     await _uow.Commit();
+        //     
+        //     // Publica todos os eventos que foram levantados na entidade
+        //     foreach (var domainEvent in client.Events)
+        //     {
+        //         await _publisher.PublishAsync(domainEvent, CancellationToken.None);
+        //     }
+        //
+        //     // 8. Retorne sucesso
+        //     return Result<CreateClientOutput, Notification>.Ok(CreateClientOutput.FromClient(client));
+        // }
+        // catch (Exception e)
+        // {
+        //     // 9. Em caso de qualquer outra exceção, reverta a transação
+        //     if (_uow.HasActiveTransaction)
+        //     {
+        //         await _uow.Rollback();
+        //     }
+        //     _logger.LogError(e, "Ocorreu um erro inesperado ao tentar criar o cliente com e-mail {ClientEmail}", input.Email);
+        //     var error = Notification.Create(new Error("Ocorreu um erro inesperado ao criar o cliente."));
+        //     return Result<CreateClientOutput, Notification>.Fail(error);
+        // }
     }
 }
 
