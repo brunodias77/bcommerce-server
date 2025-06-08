@@ -17,12 +17,14 @@ public static class InfraDependencyInjection
         AddPasswordEncrypter(services, configuration);
         AddServices(services, configuration);
         AddEvents(services, configuration);
+        AddLoggedUser(services, configuration);
         // AddLoggedCustomer(services, configuration);
         // AddToken(services, configuration);
     }
 
     private static void AddRepositories(IServiceCollection services)
     {
+        services.AddScoped<IAddressRepository, AddressRepository>();
         services.AddScoped<IEmailVerificationTokenRepository, EmailVerificationTokenRepository>();
         services.AddScoped<IClientRepository, ClientRepository>();
         services.AddScoped<IUnitOfWork, DapperUnitOfWork>();
@@ -43,6 +45,12 @@ public static class InfraDependencyInjection
     {
         services.AddScoped<IDomainEventPublisher, DomainEventPublisher>();
 
+    }
+
+    private static void AddLoggedUser(IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddHttpContextAccessor(); 
+        services.AddScoped<ILoggedUser, LoggedUser>();
     }
     
     

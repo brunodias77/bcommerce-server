@@ -1,7 +1,9 @@
 using Bcomerce.Application.UseCases.Clients.Create;
+using Bcomerce.Application.UseCases.Clients.GetMyProfile;
 using Bcomerce.Application.UseCases.Clients.Login;
 using Bcomerce.Application.UseCases.Clients.VerifyEmail;
 using Bcommerce.Domain.Validations;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Bcommerce.Api.Controllers;
@@ -47,6 +49,22 @@ public class ClientController : ControllerBase
     public async Task<IActionResult> Login([FromBody] LoginClientInput input, [FromServices] ILoginClientUseCase clientUseCase)
     {
         var result = await clientUseCase.Execute(input);
+
+        if (result.IsSuccess)
+        {
+            return Ok(result.Value);
+        }
+
+        return BadRequest(result.Error?.GetErrors());
+    }
+    
+    [Authorize] // Este atributo protege o endpoint!
+    [HttpGet("me")]
+    [ProducesResponseType(typeof(CreateClientOutput), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetMyProfile([FromServices] IGetMyProfileUseCase useCase)
+    {
+        var result = await useCase.Execute(null);
 
         if (result.IsSuccess)
         {

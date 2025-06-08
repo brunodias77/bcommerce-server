@@ -53,7 +53,7 @@ public class ClientCreatedEventHandler : IDomainEventHandler<ClientCreatedEvent>
         }
 
         // 4. Montar o link de verificação
-        var verificationLink = $"https://sua-url-de-api.com/api/clients/verify-email?token={token}";
+        var verificationLink = $"http://localhost:4200/auth/verify-email?token={token}";
 
         // 5. Enviar o email
         await _emailService.SendVerificationEmailAsync(

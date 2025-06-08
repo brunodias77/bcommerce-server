@@ -96,7 +96,8 @@ public class ClientRepository : IClientRepository
     {
         const string sql = "SELECT * FROM client WHERE client_id = @Id AND deleted_at IS NULL";
         var model = await _uow.Connection.QuerySingleOrDefaultAsync<ClientDataModel>(
-            sql, new { Id = id }, _uow.Transaction);
+            sql, new { Id = id }, transaction: _uow.HasActiveTransaction ? _uow.Transaction : null
+        );
         
         if (model == null) return null; // Ou lançar exceção ClientNotFoundException
         

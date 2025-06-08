@@ -1,4 +1,7 @@
+using Bcomerce.Application.UseCases.Clients.AddAddress;
 using Bcomerce.Application.UseCases.Clients.Create;
+using Bcomerce.Application.UseCases.Clients.GetMyProfile;
+using Bcomerce.Application.UseCases.Clients.ListAddresses;
 using Bcomerce.Application.UseCases.Clients.Login;
 using Bcomerce.Application.UseCases.Clients.VerifyEmail;
 using Bcommerce.Application.Clients.Events;
@@ -21,7 +24,9 @@ public static class ApplicationDependencyInjection
         services.AddScoped<ICreateClientUseCase,  CreateClientUseCase>();
         services.AddScoped<IVerifyEmailUseCase, VerifyEmailUseCase>();
         services.AddScoped<ILoginClientUseCase, LoginClientUseCase>();
-
+        services.AddScoped<IGetMyProfileUseCase, GetMyProfileUseCase>();
+        services.AddScoped<IAddAddressUseCase, AddAddressUseCase>();
+        services.AddScoped<IListMyAddressesUseCase, ListMyAddressesUseCase>();
     }
 
     private static void AddEvents(IServiceCollection services, IConfiguration configuration)
