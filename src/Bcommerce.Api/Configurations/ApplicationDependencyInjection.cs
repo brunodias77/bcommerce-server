@@ -31,6 +31,11 @@ public static class ApplicationDependencyInjection
         services.AddScoped<IListMyAddressesUseCase, ListMyAddressesUseCase>();
         services.AddScoped<IUpdateAddressUseCase, UpdateAddressUseCase>();
         services.AddScoped<IDeleteAddressUseCase, DeleteAddressUseCase>();
+        services.AddScoped<ICreateCategoryUseCase, CreateCategoryUseCase>();
+        services.AddScoped<IListCategoriesUseCase, ListCategoriesUseCase>();
+        services.AddScoped<IUpdateCategoryUseCase, UpdateCategoryUseCase>();
+        services.AddScoped<IDeleteCategoryUseCase, DeleteCategoryUseCase>();
+
     }
 
     private static void AddEvents(IServiceCollection services, IConfiguration configuration)

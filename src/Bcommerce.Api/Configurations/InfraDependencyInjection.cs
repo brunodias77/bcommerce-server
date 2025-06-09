@@ -1,4 +1,5 @@
 using Bcommerce.Domain.Abstractions;
+using Bcommerce.Domain.Categories.Repositories;
 using Bcommerce.Domain.Clients.Repositories;
 using Bcommerce.Domain.Security;
 using Bcommerce.Domain.Services;
@@ -27,6 +28,7 @@ public static class InfraDependencyInjection
         services.AddScoped<IAddressRepository, AddressRepository>();
         services.AddScoped<IEmailVerificationTokenRepository, EmailVerificationTokenRepository>();
         services.AddScoped<IClientRepository, ClientRepository>();
+        services.AddScoped<ICategoryRepository, CategoryRepository>(); // <<< ADICIONE ESTA LINHA
         services.AddScoped<IUnitOfWork, DapperUnitOfWork>();
     }
 
@@ -35,7 +37,7 @@ public static class InfraDependencyInjection
         services.AddSingleton<IEmailService, ConsoleEmailService>(); // Singleton para o serviço de console
         services.AddScoped<ITokenService, JwtTokenService>();
     }
-    
+
     private static void AddPasswordEncrypter(IServiceCollection services, IConfiguration configuration)
     {
         services.AddScoped<IPasswordEncripter, PasswordEncripter>();
@@ -49,17 +51,17 @@ public static class InfraDependencyInjection
 
     private static void AddLoggedUser(IServiceCollection services, IConfiguration configuration)
     {
-        services.AddHttpContextAccessor(); 
+        services.AddHttpContextAccessor();
         services.AddScoped<ILoggedUser, LoggedUser>();
     }
-    
-    
+
+
     //
     // private static void AddLoggedCustomer(IServiceCollection services, IConfiguration configuration)
     // {
     //     services.AddScoped<ILoggedCustomer, LoggedCustomer>();
     // }
-    
+
     // private static void AddToken(IServiceCollection services, IConfigurationManager configuration)
     // {
     //     services.Configure<JwtSettings>(configuration.GetSection("Settings:JwtSettings"));
