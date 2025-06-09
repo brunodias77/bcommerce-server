@@ -37,7 +37,7 @@ void ConfigureServices(IServiceCollection services, IConfiguration configuration
     services.AddCors(options => 
             options.AddPolicy("AllowFrontend", policy =>
             {
-                policy.WithOrigins("http://localhost:4200")
+                policy.WithOrigins("http://localhost:3000")
                     .AllowAnyHeader()
                     .AllowAnyMethod();
             }));

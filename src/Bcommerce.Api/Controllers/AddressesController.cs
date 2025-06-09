@@ -57,39 +57,6 @@ public class AddressesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateAddress(
         [FromRoute] Guid addressId,
-        [FromBody] object input, /* Crie um UpdateAddressInput aqui */
-        [FromServices] object useCase /* Crie e injete um IUpdateAddressUseCase */)
-    {
-        // A implementação seguirá o mesmo padrão:
-        // var result = await useCase.Execute(addressId, input);
-        // if (result.IsSuccess) return Ok(result.Value);
-        // return BadRequest(result.Error?.GetErrors());
-        
-        return Ok(); // Placeholder
-    }
-    
-    [HttpDelete("{addressId:guid}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(List<Error>), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> DeleteAddress(
-        [FromRoute] Guid addressId,
-        [FromServices] object useCase /* Crie e injete um IDeleteAddressUseCase */)
-    {
-        // A implementação seguirá o mesmo padrão:
-        // var result = await useCase.Execute(addressId);
-        // if (result.IsSuccess) return NoContent();
-        // return BadRequest(result.Error?.GetErrors());
-        
-        return NoContent(); // Placeholder
-    }
-    
-    [HttpPut("{addressId:guid}")]
-    [ProducesResponseType(typeof(AddressOutput), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(List<Error>), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> UpdateAddress(
-        [FromRoute] Guid addressId,
         [FromBody] UpdateAddressPayload payload, // Recebe o payload do corpo
         [FromServices] IUpdateAddressUseCase useCase) // Injeta o Use Case
     {
