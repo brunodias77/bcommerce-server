@@ -13,7 +13,7 @@ using Bcommerce.Infrastructure.Data.Repositories;
 
 namespace Bcomerce.Application.UseCases.Catalog.CreateCategory
 {
-    class CreateCategoryUseCase : ICreateCategoryUseCase
+    public class CreateCategoryUseCase : ICreateCategoryUseCase
     {
         private readonly ICategoryRepository _categoryRepository;
         private readonly IUnitOfWork _uow;

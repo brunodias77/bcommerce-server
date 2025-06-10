@@ -12,7 +12,7 @@ using Bcommerce.Infrastructure.Data.Repositories;
 
 namespace Bcomerce.Application.UseCases.Catalog.UpdateCategory
 {
-    class UpdateCategoryUseCase : IUpdateCategoryUseCase
+    public class UpdateCategoryUseCase : IUpdateCategoryUseCase
     {
         private readonly ICategoryRepository _categoryRepository;
         private readonly IUnitOfWork _uow;

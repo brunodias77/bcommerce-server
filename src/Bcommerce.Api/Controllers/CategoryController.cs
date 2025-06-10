@@ -4,8 +4,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using Bcomerce.Application.UseCases.Catalog.Common;
 using Bcomerce.Application.UseCases.Catalog.CreateCategory;
+using Bcomerce.Application.UseCases.Catalog.DeleteCategories;
 using Bcomerce.Application.UseCases.Catalog.ListCategories;
 using Bcomerce.Application.UseCases.Catalog.UpdateCategory;
+using Bcommerce.Domain.Validations;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Bcommerce.Api.Controllers
@@ -18,7 +20,7 @@ namespace Bcommerce.Api.Controllers
 
         [HttpPost]
         [ProducesResponseType(typeof(Bcomerce.Application.UseCases.Catalog.Common.CategoryOutput), StatusCodes.Status201Created)]
-        [ProducesResponseType(typeof(List<System.Runtime.InteropServices.JavaScript.JSType.Error>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(List<Error>), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> Create(
        [FromBody] CreateCategoryInput input,
        [FromServices] ICreateCategoryUseCase useCase)
@@ -44,7 +46,7 @@ namespace Bcommerce.Api.Controllers
 
         [HttpPut("{id:guid}")]
         [ProducesResponseType(typeof(CategoryOutput), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(List<System.Runtime.InteropServices.JavaScript.JSType.Error>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(List<Error>), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> Update(
                                                     [FromRoute] Guid id,
                                                     [FromBody] UpdateCategoryInput payload,
@@ -63,11 +65,5 @@ namespace Bcommerce.Api.Controllers
             var result = await useCase.Execute(id);
             return result.IsSuccess ? NoContent() : BadRequest(result.Error?.GetErrors());
         }
-
-        // Aqui você adicionará os outros endpoints (GET, PUT, DELETE)
-        // que chamarão seus respectivos Use Cases.
-        // Ex:
-        // [HttpGet]
-        // public async Task<IActionResult> List([FromServices] IListCategoriesUseCase useCase) { ... }
     }
 }

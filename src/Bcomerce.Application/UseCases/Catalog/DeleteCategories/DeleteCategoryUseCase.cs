@@ -11,7 +11,7 @@ using Bcommerce.Infrastructure.Data.Repositories;
 
 namespace Bcomerce.Application.UseCases.Catalog.DeleteCategories
 {
-    class DeleteCategoryUseCase : IDeleteCategoryUseCase
+    public class DeleteCategoryUseCase : IDeleteCategoryUseCase
     {
         private readonly ICategoryRepository _categoryRepository;
         private readonly IUnitOfWork _uow;

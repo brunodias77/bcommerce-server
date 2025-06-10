@@ -1,3 +1,7 @@
+using Bcomerce.Application.UseCases.Catalog.CreateCategory;
+using Bcomerce.Application.UseCases.Catalog.DeleteCategories;
+using Bcomerce.Application.UseCases.Catalog.ListCategories;
+using Bcomerce.Application.UseCases.Catalog.UpdateCategory;
 using Bcomerce.Application.UseCases.Clients.AddAddress;
 using Bcomerce.Application.UseCases.Clients.Create;
 using Bcomerce.Application.UseCases.Clients.DeleteAddress;

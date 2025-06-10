@@ -10,7 +10,7 @@ using Bcommerce.Domain.Validations.Handlers;
 
 namespace Bcomerce.Application.UseCases.Catalog.ListCategories
 {
-    class ListCategoriesUseCase : IListCategoriesUseCase
+    public class ListCategoriesUseCase : IListCategoriesUseCase
     {
         private readonly ICategoryRepository _categoryRepository;
         public ListCategoriesUseCase(ICategoryRepository categoryRepository)
