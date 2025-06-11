@@ -3,6 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Bcommerce.Domain.Abstractions;
+using Bcommerce.Domain.Brands.Validators;
+using Bcommerce.Domain.Validations;
+using Bcommerce.Domain.Validations.Handlers;
 
 namespace Bcommerce.Domain.Brands
 {
@@ -77,5 +81,7 @@ namespace Bcommerce.Domain.Brands
         {
             new BrandValidator(this, handler).Validate();
         }
+
+        
     }
 }

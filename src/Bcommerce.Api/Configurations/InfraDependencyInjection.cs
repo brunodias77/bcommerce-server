@@ -1,4 +1,5 @@
 using Bcommerce.Domain.Abstractions;
+using Bcommerce.Domain.Brands.Repositories;
 using Bcommerce.Domain.Categories.Repositories;
 using Bcommerce.Domain.Clients.Repositories;
 using Bcommerce.Domain.Security;

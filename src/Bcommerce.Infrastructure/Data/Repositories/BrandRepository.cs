@@ -3,6 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Bcommerce.Domain.Brands;
+using Bcommerce.Domain.Brands.Repositories;
+using Bcommerce.Infrastructure.Data.Models;
+using Dapper;
 
 namespace Bcommerce.Infrastructure.Data.Repositories
 {
