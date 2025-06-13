@@ -1,5 +1,6 @@
 using Bcomerce.Application.UseCases.Catalog.CreateCategory;
 using Bcomerce.Application.UseCases.Catalog.DeleteCategories;
+using Bcomerce.Application.UseCases.Catalog.GetProductDetails;
 using Bcomerce.Application.UseCases.Catalog.ListCategories;
 using Bcomerce.Application.UseCases.Catalog.UpdateCategory;
 using Bcomerce.Application.UseCases.Clients.AddAddress;
@@ -39,7 +40,7 @@ public static class ApplicationDependencyInjection
         services.AddScoped<IListCategoriesUseCase, ListCategoriesUseCase>();
         services.AddScoped<IUpdateCategoryUseCase, UpdateCategoryUseCase>();
         services.AddScoped<IDeleteCategoryUseCase, DeleteCategoryUseCase>();
-
+        services.AddScoped<IGetProductDetailsUseCase, GetProductDetailsUseCase>();
     }
 
     private static void AddEvents(IServiceCollection services, IConfiguration configuration)

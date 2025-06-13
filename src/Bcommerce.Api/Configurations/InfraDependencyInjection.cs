@@ -2,6 +2,7 @@ using Bcommerce.Domain.Abstractions;
 using Bcommerce.Domain.Brands.Repositories;
 using Bcommerce.Domain.Categories.Repositories;
 using Bcommerce.Domain.Clients.Repositories;
+using Bcommerce.Domain.Products.Repositories;
 using Bcommerce.Domain.Security;
 using Bcommerce.Domain.Services;
 using Bcommerce.Infrastructure.Data.Repositories;
@@ -32,7 +33,7 @@ public static class InfraDependencyInjection
         services.AddScoped<ICategoryRepository, CategoryRepository>(); // <<< ADICIONE ESTA LINHA
         services.AddScoped<IUnitOfWork, DapperUnitOfWork>();
         services.AddScoped<IBrandRepository, BrandRepository>(); // <<< ADICIONE ESTA LINHA
-
+        services.AddScoped<IProductRepository, ProductRepository>();
     }
 
     private static void AddServices(IServiceCollection services, IConfiguration configuration)
