@@ -1,611 +1,616 @@
-- EXTENSÕES NECESSÁRIAS
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-- - ================================================
--- FUNÇÕES GLOBAIS
--- ================================================
-- - Atualiza automaticamente o campo updated_at
-CREATE OR REPLACE FUNCTION trigger_set_timestamp()
-RETURNS TRIGGER AS $$
-BEGIN
-NEW.updated_at = CURRENT_TIMESTAMP;
-RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-- - Gera código de pedido
-CREATE OR REPLACE FUNCTION generate_order_code()
-RETURNS VARCHAR AS $$
-BEGIN
-RETURN 'ORD-' || UPPER(SUBSTRING(REPLACE(gen_random_uuid()::text, '-', ''), 1, 10));
-END;
-$$ LANGUAGE plpgsql VOLATILE;
-- - ================================================
--- ENUMS
--- ================================================
+-- =====================================================================
+-- SCHEMA DE BANCO DE DADOS PARA PRODUÇÃO - E-COMMERCE
+-- Versão 2.0 - Final, com melhorias aplicadas
+-- Data: 19 de Junho de 2025
+-- Analista: DBMaster Pro
+-- Alterações v2.0:
+--   - Adição de mecanismo de Full-Text Search para produtos.
+--   - Adição de função e triggers de auditoria genérica.
+--   - Inclusão de notas sobre lógica de aplicação e manutenção.
+-- =====================================================================
 
+-- ================================================
+-- EXTENSÕES
+-- ================================================
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- ================================================
+-- ENUMS (Tipos de Dados Customizados)
+-- ================================================
 CREATE TYPE coupon_type AS ENUM ('general', 'user_specific');
 CREATE TYPE order_status_enum AS ENUM ('pending', 'processing', 'shipped', 'delivered', 'canceled', 'returned');
 CREATE TYPE payment_method_enum AS ENUM ('credit_card', 'debit_card', 'pix', 'bank_slip');
 CREATE TYPE payment_status_enum AS ENUM ('pending', 'approved', 'declined', 'refunded', 'partially_refunded', 'chargeback', 'error');
 CREATE TYPE address_type_enum AS ENUM ('shipping', 'billing');
-CREATE TYPE consent_type_enum AS ENUM (
-'marketing_email', 'newsletter_subscription', 'terms_of_service',
-'privacy_policy', 'cookies_essential', 'cookies_analytics', 'cookies_marketing'
-);
-CREATE TYPE card_brand_enum AS ENUM (
-'visa', 'mastercard', 'amex', 'elo', 'hipercard',
-'diners_club', 'discover', 'jcb', 'aura', 'other'
-);
-CREATE TYPE audit_operation_type_enum AS ENUM (
-'INSERT', 'UPDATE', 'DELETE',
-'LOGIN_SUCCESS', 'LOGIN_FAILURE', 'PASSWORD_RESET_REQUEST',
-'PASSWORD_RESET_SUCCESS', 'ORDER_STATUS_CHANGE', 'PAYMENT_STATUS_CHANGE', 'SYSTEM_ACTION'
-);
+CREATE TYPE consent_type_enum AS ENUM ('marketing_email', 'newsletter_subscription', 'terms_of_service', 'privacy_policy', 'cookies_essential', 'cookies_analytics', 'cookies_marketing');
+CREATE TYPE card_brand_enum AS ENUM ('visa', 'mastercard', 'amex', 'elo', 'hipercard', 'diners_club', 'discover', 'jcb', 'aura', 'other');
+CREATE TYPE audit_operation_type_enum AS ENUM ('INSERT', 'UPDATE', 'DELETE', 'LOGIN_SUCCESS', 'LOGIN_FAILURE', 'PASSWORD_RESET_REQUEST', 'PASSWORD_RESET_SUCCESS', 'ORDER_STATUS_CHANGE', 'PAYMENT_STATUS_CHANGE', 'SYSTEM_ACTION');
 
-- - ================================================
--- TABELA: client
 -- ================================================
-CREATE TABLE client (
-client_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-first_name VARCHAR(100) NOT NULL,
-last_name VARCHAR(155) NOT NULL,
-email VARCHAR(255) NOT NULL UNIQUE,
-email_verified_at TIMESTAMPTZ,
-phone VARCHAR(20) NOT NULL,
-password_hash VARCHAR(255) NOT NULL,
-cpf CHAR(11) UNIQUE,
-date_of_birth DATE,
-newsletter_opt_in BOOLEAN NOT NULL DEFAULT FALSE,
-status VARCHAR(20) NOT NULL DEFAULT 'ativo'
-CHECK (status IN ('ativo', 'inativo', 'banido')),
-created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-deleted_at TIMESTAMPTZ,
-version INTEGER NOT NULL DEFAULT 1
-);
-
-CREATE TRIGGER set_timestamp_client
-BEFORE UPDATE ON client
-FOR EACH ROW
-EXECUTE FUNCTION trigger_set_timestamp();
-
-CREATE INDEX idx_client_status ON client (status);
-CREATE INDEX idx_client_newsletter_opt_in ON client (newsletter_opt_in);
-CREATE INDEX idx_client_active_records ON client (client_id) WHERE deleted_at IS NULL;
-
-- - ================================================
--- TABELA: category
+-- FUNÇÕES GLOBAIS E DE APOIO
 -- ================================================
-CREATE TABLE category (
-category_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-name VARCHAR(100) NOT NULL UNIQUE,
-slug VARCHAR(150) NOT NULL UNIQUE,
-description TEXT,
-parent_category_id UUID REFERENCES category(category_id) ON DELETE SET NULL,
-is_active BOOLEAN NOT NULL DEFAULT TRUE,
-sort_order INTEGER NOT NULL DEFAULT 0,
-created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-deleted_at TIMESTAMPTZ,
-version INTEGER NOT NULL DEFAULT 1
-);
 
-CREATE TRIGGER set_timestamp_category
-BEFORE UPDATE ON category
-FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+-- Função para atualizar a coluna 'updated_at' automaticamente
+CREATE OR REPLACE FUNCTION trigger_set_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = CURRENT_TIMESTAMP;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
-CREATE INDEX idx_category_parent_category_id ON category (parent_category_id) WHERE parent_category_id IS NOT NULL;
-CREATE INDEX idx_category_is_active ON category (is_active);
-CREATE INDEX idx_category_active_records ON category (category_id) WHERE deleted_at IS NULL;
+-- Função para gerar códigos de pedido únicos e mais organizados
+CREATE OR REPLACE FUNCTION generate_order_code()
+RETURNS VARCHAR AS $$
+BEGIN
+  RETURN 'ORD-' || TO_CHAR(CURRENT_DATE, 'YYYY-') || UPPER(SUBSTRING(REPLACE(gen_random_uuid()::text, '-', ''), 1, 8));
+END;
+$$ LANGUAGE plpgsql VOLATILE;
 
-- - ================================================
--- TABELA: brand
+-- Função para validar a estrutura de um CPF
+CREATE OR REPLACE FUNCTION is_cpf_valid(cpf TEXT)
+RETURNS BOOLEAN AS $$
+DECLARE
+    cpf_clean TEXT;
+    cpf_array INT[];
+    sum1 INT := 0;
+    sum2 INT := 0;
+    i INT;
+BEGIN
+    cpf_clean := REGEXP_REPLACE(cpf, '[^0-9]', '', 'g');
+    IF LENGTH(cpf_clean) != 11 OR cpf_clean ~ '(\d)\1{10}' THEN
+        RETURN FALSE;
+    END IF;
+    cpf_array := STRING_TO_ARRAY(cpf_clean, NULL)::INT[];
+    FOR i IN 1..9 LOOP
+        sum1 := sum1 + cpf_array[i] * (11 - i);
+    END LOOP;
+    sum1 := 11 - (sum1 % 11);
+    IF sum1 >= 10 THEN sum1 := 0; END IF;
+    IF sum1 != cpf_array[10] THEN RETURN FALSE; END IF;
+
+    FOR i IN 1..10 LOOP
+        sum2 := sum2 + cpf_array[i] * (12 - i);
+    END LOOP;
+    sum2 := 11 - (sum2 % 11);
+    IF sum2 >= 10 THEN sum2 := 0; END IF;
+    IF sum2 != cpf_array[11] THEN RETURN FALSE; END IF;
+
+    RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+-- Função para registrar o histórico de alterações de endereços
+CREATE OR REPLACE FUNCTION trigger_log_address_history()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO address_history (address_id, client_id, address_snapshot)
+    VALUES (OLD.address_id, OLD.client_id, to_jsonb(OLD));
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Função para atualizar o vetor de busca (Full-Text Search) da tabela de produtos
+CREATE OR REPLACE FUNCTION trigger_update_products_search_vector()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.search_vector =
+        setweight(to_tsvector('portuguese', COALESCE(NEW.name, '')), 'A') ||
+        setweight(to_tsvector('portuguese', COALESCE(NEW.base_sku, '')), 'A') ||
+        setweight(to_tsvector('portuguese', COALESCE(NEW.description, '')), 'B');
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Função de gatilho genérica para popular a tabela de auditoria
+CREATE OR REPLACE FUNCTION trigger_log_audit()
+RETURNS TRIGGER AS $$
+DECLARE
+    audit_row audit_log;
+    record_id TEXT;
+    user_identifier TEXT;
+    excluded_cols TEXT[] = ARRAY['created_at', 'updated_at', 'version', 'password_hash', 'search_vector'];
+BEGIN
+    -- Tenta obter o identificador do usuário a partir de uma variável de sessão.
+    -- A aplicação deve configurar isso com: SET LOCAL app.current_user = '...';
+    BEGIN
+        user_identifier := CURRENT_SETTING('app.current_user', true);
+    EXCEPTION WHEN OTHERS THEN
+        user_identifier := 'system';
+    END;
+
+    -- Extrai o ID do registro (PK) dinamicamente. O nome da PK é passado como argumento do trigger.
+    IF TG_ARGV[0] IS NOT NULL THEN
+        IF (TG_OP = 'DELETE') THEN
+            EXECUTE 'SELECT ($1).' || quote_ident(TG_ARGV[0]) INTO record_id USING OLD;
+        ELSE
+            EXECUTE 'SELECT ($1).' || quote_ident(TG_ARGV[0]) INTO record_id USING NEW;
+        END IF;
+    END IF;
+
+    audit_row = ROW(
+        NEXTVAL('audit_log_audit_log_id_seq'),
+        TG_TABLE_NAME,
+        record_id,
+        TG_OP::audit_operation_type_enum,
+        NULL,
+        NULL,
+        NULL,
+        user_identifier,
+        INET_CLIENT_ADDR(),
+        CURRENT_TIMESTAMP
+    );
+
+    IF (TG_OP = 'UPDATE') THEN
+        audit_row.previous_data = to_jsonb(OLD) - excluded_cols;
+        audit_row.new_data = to_jsonb(NEW) - excluded_cols;
+    ELSIF (TG_OP = 'DELETE') THEN
+        audit_row.previous_data = to_jsonb(OLD) - excluded_cols;
+    ELSIF (TG_OP = 'INSERT') THEN
+        audit_row.new_data = to_jsonb(NEW) - excluded_cols;
+    END IF;
+
+    INSERT INTO audit_log VALUES (audit_row.*);
+    RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
 -- ================================================
-CREATE TABLE brand (
-brand_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-name VARCHAR(100) NOT NULL UNIQUE,
-slug VARCHAR(150) NOT NULL UNIQUE,
-description TEXT,
-logo_url VARCHAR(255),
-is_active BOOLEAN NOT NULL DEFAULT TRUE,
-created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-deleted_at TIMESTAMPTZ,
-version INTEGER NOT NULL DEFAULT 1
-);
-
-CREATE TRIGGER set_timestamp_brand
-BEFORE UPDATE ON brand
-FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
-
-CREATE INDEX idx_brand_is_active ON brand (is_active);
-CREATE INDEX idx_brand_active_records ON brand (brand_id) WHERE deleted_at IS NULL;
-
-- - ================================================
--- TABELA: product
+-- ESTRUTURA DE TABELAS
 -- ================================================
-CREATE TABLE product (
-product_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-base_sku VARCHAR(50) NOT NULL UNIQUE,
-name VARCHAR(150) NOT NULL,
-slug VARCHAR(200) NOT NULL UNIQUE,
-description TEXT,
-category_id UUID NOT NULL REFERENCES category(category_id) ON DELETE RESTRICT,
-brand_id UUID REFERENCES brand(brand_id) ON DELETE SET NULL,
-base_price NUMERIC(10,2) NOT NULL CHECK (base_price >= 0),
-sale_price NUMERIC(10,2) CHECK (sale_price IS NULL OR sale_price >= 0),
-sale_price_start_date TIMESTAMPTZ,
-sale_price_end_date TIMESTAMPTZ,
-stock_quantity INTEGER NOT NULL DEFAULT 0 CHECK (stock_quantity >= 0),
-is_active BOOLEAN NOT NULL DEFAULT TRUE,
-weight_kg NUMERIC(6,3) CHECK (weight_kg IS NULL OR weight_kg >= 0),
-height_cm INTEGER CHECK (height_cm IS NULL OR height_cm >= 0),
-width_cm INTEGER CHECK (width_cm IS NULL OR width_cm >= 0),
-depth_cm INTEGER CHECK (depth_cm IS NULL OR depth_cm >= 0),
-created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-deleted_at TIMESTAMPTZ,
-version INTEGER NOT NULL DEFAULT 1
+
+-- Tabela de Clientes
+CREATE TABLE clients (
+    client_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(155) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    email_verified_at TIMESTAMPTZ,
+    phone VARCHAR(20),
+    password_hash VARCHAR(255) NOT NULL,
+    cpf CHAR(11) UNIQUE,
+    date_of_birth DATE,
+    newsletter_opt_in BOOLEAN NOT NULL DEFAULT FALSE,
+    status VARCHAR(20) NOT NULL DEFAULT 'ativo' CHECK (status IN ('ativo', 'inativo', 'banido')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ,
+    version INTEGER NOT NULL DEFAULT 1,
+    CONSTRAINT chk_cpf_valid CHECK (cpf IS NULL OR is_cpf_valid(cpf))
 );
+CREATE UNIQUE INDEX idx_clients_active_email ON clients (email) WHERE deleted_at IS NULL;
+CREATE INDEX idx_clients_status ON clients (status) WHERE deleted_at IS NULL;
+CREATE TRIGGER set_timestamp_clients BEFORE UPDATE ON clients FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+CREATE TRIGGER audit_clients_trigger AFTER INSERT OR UPDATE OR DELETE ON clients FOR EACH ROW EXECUTE FUNCTION trigger_log_audit('client_id');
 
-CREATE TRIGGER set_timestamp_product
-BEFORE UPDATE ON product
-FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
-
-CREATE INDEX idx_product_category_id ON product (category_id);
-CREATE INDEX idx_product_brand_id ON product (brand_id) WHERE brand_id IS NOT NULL;
-CREATE INDEX idx_product_is_active ON product (is_active);
-CREATE INDEX idx_product_active_records ON product (product_id) WHERE deleted_at IS NULL;
-
-- - ================================================
--- TABELA: color
--- ================================================
-CREATE TABLE color (
-color_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-name VARCHAR(50) NOT NULL UNIQUE,
-hex_code CHAR(7) UNIQUE CHECK (hex_code ~ '^#[0-9a-fA-F]{6}$'),
-is_active BOOLEAN NOT NULL DEFAULT TRUE,
-created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-deleted_at TIMESTAMPTZ,
-version INTEGER NOT NULL DEFAULT 1
+-- Tabela de Endereços
+CREATE TABLE addresses (
+    address_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    client_id UUID NOT NULL REFERENCES clients(client_id) ON DELETE CASCADE,
+    type address_type_enum NOT NULL,
+    postal_code CHAR(8) NOT NULL,
+    street VARCHAR(150) NOT NULL,
+    street_number VARCHAR(20) NOT NULL,
+    complement VARCHAR(100),
+    neighborhood VARCHAR(100) NOT NULL,
+    city VARCHAR(100) NOT NULL,
+    state_code CHAR(2) NOT NULL,
+    country_code CHAR(2) NOT NULL DEFAULT 'BR',
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ,
+    version INTEGER NOT NULL DEFAULT 1
 );
+CREATE INDEX idx_addresses_client_id ON addresses (client_id);
+CREATE UNIQUE INDEX uq_addresses_default_per_client_type ON addresses (client_id, type) WHERE is_default = TRUE AND deleted_at IS NULL;
+CREATE TRIGGER set_timestamp_addresses BEFORE UPDATE ON addresses FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+CREATE TRIGGER log_address_changes BEFORE UPDATE ON addresses FOR EACH ROW WHEN (OLD.* IS DISTINCT FROM NEW.*) EXECUTE FUNCTION trigger_log_address_history();
+CREATE TRIGGER audit_addresses_trigger AFTER INSERT OR UPDATE OR DELETE ON addresses FOR EACH ROW EXECUTE FUNCTION trigger_log_audit('address_id');
 
-CREATE TRIGGER set_timestamp_color
-BEFORE UPDATE ON color FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
 
-- - ================================================
--- TABELA: size
--- ================================================
-CREATE TABLE size (
-size_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-name VARCHAR(50) NOT NULL UNIQUE,
-size_code VARCHAR(20) UNIQUE,
-description TEXT,
-sort_order INTEGER NOT NULL DEFAULT 0,
-is_active BOOLEAN NOT NULL DEFAULT TRUE,
-created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-deleted_at TIMESTAMPTZ,
-version INTEGER NOT NULL DEFAULT 1
-);
-
-CREATE TRIGGER set_timestamp_size
-BEFORE UPDATE ON size FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
-
-- - ================================================
--- TABELA: product_variant
--- ================================================
-CREATE TABLE product_variant (
-product_variant_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-product_id UUID NOT NULL REFERENCES product(product_id) ON DELETE CASCADE,
-sku VARCHAR(50) NOT NULL UNIQUE,
-color_id UUID REFERENCES color(color_id) ON DELETE RESTRICT,
-size_id UUID REFERENCES size(size_id) ON DELETE RESTRICT,
-stock_quantity INTEGER NOT NULL DEFAULT 0 CHECK (stock_quantity >= 0),
-additional_price NUMERIC(10,2) NOT NULL DEFAULT 0.00,
-image_url VARCHAR(255),
-is_active BOOLEAN NOT NULL DEFAULT TRUE,
-created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-deleted_at TIMESTAMPTZ,
-version INTEGER NOT NULL DEFAULT 1,
-CONSTRAINT uq_product_variant_attributes UNIQUE (product_id, color_id, size_id)
-);
-
-CREATE TRIGGER set_timestamp_product_variant
-BEFORE UPDATE ON product_variant FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
-
-- - ================================================
--- TABELA: product_attribute
--- ================================================
-CREATE TABLE product_attribute (
-product_attribute_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-name VARCHAR(100) NOT NULL UNIQUE,
-created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-deleted_at TIMESTAMPTZ,
-version INTEGER NOT NULL DEFAULT 1
-);
-
-CREATE TRIGGER set_timestamp_product_attribute
-BEFORE UPDATE ON product_attribute FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
-
-- - ================================================
--- TABELA: product_attribute_value
--- ================================================
-CREATE TABLE product_attribute_value (
-product_attribute_value_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-product_id UUID NOT NULL REFERENCES product(product_id) ON DELETE CASCADE,
-product_attribute_id UUID NOT NULL REFERENCES product_attribute(product_attribute_id) ON DELETE RESTRICT,
-value VARCHAR(255) NOT NULL,
-created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-deleted_at TIMESTAMPTZ,
-version INTEGER NOT NULL DEFAULT 1,
-CONSTRAINT uq_product_attribute_value UNIQUE (product_id, product_attribute_id)
-);
-
-CREATE TRIGGER set_timestamp_product_attribute_value
-BEFORE UPDATE ON product_attribute_value FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
-
-- - ================================================
--- TABELA: tag
--- ================================================
-CREATE TABLE tag (
-tag_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-name VARCHAR(75) NOT NULL UNIQUE,
-created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-deleted_at TIMESTAMPTZ,
-version INTEGER NOT NULL DEFAULT 1
-);
-
-CREATE TRIGGER set_timestamp_tag
-BEFORE UPDATE ON tag FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
-
-- - ================================================
--- TABELA: product_tag
--- ================================================
-CREATE TABLE product_tag (
-product_tag_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-product_id UUID NOT NULL REFERENCES product(product_id) ON DELETE CASCADE,
-tag_id UUID NOT NULL REFERENCES tag(tag_id) ON DELETE CASCADE,
-created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-deleted_at TIMESTAMPTZ,
-version INTEGER NOT NULL DEFAULT 1,
-CONSTRAINT uq_product_tag UNIQUE (product_id, tag_id)
-);
-
-CREATE TRIGGER set_timestamp_product_tag
-BEFORE UPDATE ON product_tag FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
-
-- - ================================================
--- TABELA: coupon
--- ================================================
-CREATE TABLE coupon (
-coupon_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-code VARCHAR(50) NOT NULL UNIQUE,
-description TEXT,
-discount_percentage NUMERIC(5,2),
-discount_amount NUMERIC(10,2),
-valid_from TIMESTAMPTZ NOT NULL,
-valid_until TIMESTAMPTZ NOT NULL,
-max_uses INTEGER,
-times_used INTEGER NOT NULL DEFAULT 0,
-min_purchase_amount NUMERIC(10,2),
-is_active BOOLEAN NOT NULL DEFAULT TRUE,
-type coupon_type NOT NULL DEFAULT 'general',
-client_id UUID REFERENCES client(client_id) ON DELETE RESTRICT,
-created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-deleted_at TIMESTAMPTZ,
-version INTEGER NOT NULL DEFAULT 1
-);
-
-CREATE TRIGGER set_timestamp_coupon
-BEFORE UPDATE ON coupon FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
-
-- - ================================================
--- TABELA: "order"
--- ================================================
-CREATE TABLE "order" (
-order_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-reference_code VARCHAR(20) UNIQUE NOT NULL DEFAULT generate_order_code(),
-client_id UUID NOT NULL REFERENCES client(client_id) ON DELETE RESTRICT,
-coupon_id UUID REFERENCES coupon(coupon_id) ON DELETE SET NULL,
-status order_status_enum NOT NULL DEFAULT 'pending',
-items_total_amount NUMERIC(10,2) NOT NULL,
-discount_amount NUMERIC(10,2) NOT NULL DEFAULT 0.00,
-shipping_amount NUMERIC(10,2) NOT NULL DEFAULT 0.00,
-grand_total_amount NUMERIC(12,2) GENERATED ALWAYS AS (items_total_amount - discount_amount + shipping_amount) STORED,
-created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-deleted_at TIMESTAMPTZ,
-version INTEGER NOT NULL DEFAULT 1
-);
-
-CREATE TRIGGER set_timestamp_order
-BEFORE UPDATE ON "order"
-FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
-
-- - ================================================
--- TABELA: order_item
--- ================================================
-CREATE TABLE order_item (
-order_item_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-order_id UUID NOT NULL REFERENCES "order"(order_id) ON DELETE CASCADE,
-product_id UUID REFERENCES product(product_id) ON DELETE SET NULL,
-product_variant_id UUID REFERENCES product_variant(product_variant_id) ON DELETE SET NULL,
-item_sku VARCHAR(100) NOT NULL,
-item_name VARCHAR(255) NOT NULL,
-quantity INTEGER NOT NULL,
-unit_price NUMERIC(10,2) NOT NULL,
-unit_discount_amount NUMERIC(10,2) NOT NULL DEFAULT 0.00,
-line_item_total_amount NUMERIC(12,2) GENERATED ALWAYS AS ((unit_price - unit_discount_amount) * quantity) STORED,
-created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-deleted_at TIMESTAMPTZ,
-version INTEGER NOT NULL DEFAULT 1
-);
-
-CREATE TRIGGER set_timestamp_order_item
-BEFORE UPDATE ON order_item
-FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
-
-- - ================================================
--- TABELA: payment
--- ================================================
-CREATE TABLE payment (
-payment_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-order_id UUID NOT NULL REFERENCES "order"(order_id) ON DELETE RESTRICT,
-method payment_method_enum NOT NULL,
-status payment_status_enum NOT NULL DEFAULT 'pending',
-amount NUMERIC(10,2) NOT NULL,
-transaction_id VARCHAR(100) UNIQUE,
-method_details JSONB,
-processed_at TIMESTAMPTZ,
-created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-deleted_at TIMESTAMPTZ,
-version INTEGER NOT NULL DEFAULT 1
-);
-
-CREATE TRIGGER set_timestamp_payment
-BEFORE UPDATE ON payment
-FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
-
-- - ================================================
--- TABELA: coupon_usage
--- ================================================
-CREATE TABLE coupon_usage (
-coupon_usage_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-coupon_id UUID NOT NULL REFERENCES coupon(coupon_id) ON DELETE CASCADE,
-order_id UUID NOT NULL REFERENCES "order"(order_id) ON DELETE CASCADE,
-client_id UUID NOT NULL REFERENCES client(client_id) ON DELETE RESTRICT,
-discount_applied_amount NUMERIC(10,2) NOT NULL,
-used_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-deleted_at TIMESTAMPTZ,
-version INTEGER NOT NULL DEFAULT 1
-);
-
-CREATE TRIGGER set_timestamp_coupon_usage
-BEFORE UPDATE ON coupon_usage FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
-
-- - ================================================
--- TABELA: address
--- ================================================
-CREATE TABLE address (
-address_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-client_id UUID NOT NULL REFERENCES client(client_id) ON DELETE CASCADE,
-type address_type_enum NOT NULL,
-postal_code CHAR(8) NOT NULL,
-street VARCHAR(150) NOT NULL,
-number VARCHAR(20) NOT NULL,
-complement VARCHAR(100),
-neighborhood VARCHAR(100) NOT NULL,
-city VARCHAR(100) NOT NULL,
-state_code CHAR(2) NOT NULL,
-country_code CHAR(2) NOT NULL DEFAULT 'BR',
-is_default BOOLEAN NOT NULL DEFAULT FALSE,
-created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-deleted_at TIMESTAMPTZ,
-version INTEGER NOT NULL DEFAULT 1
-);
-
-CREATE TRIGGER set_timestamp_address
-BEFORE UPDATE ON address FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
-
-- - ================================================
--- TABELA: address_history
--- ================================================
+-- Tabela de Histórico de Endereços
 CREATE TABLE address_history (
-address_history_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-address_id UUID NOT NULL REFERENCES address(address_id) ON DELETE RESTRICT,
-client_id UUID NOT NULL REFERENCES client(client_id) ON DELETE RESTRICT,
-address_snapshot JSONB NOT NULL,
-created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    address_history_id BIGSERIAL PRIMARY KEY,
+    address_id UUID NOT NULL,
+    client_id UUID NOT NULL,
+    address_snapshot JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-- - ================================================
--- TABELA: order_address
--- ================================================
-CREATE TABLE order_address (
-order_address_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-order_id UUID NOT NULL REFERENCES "order"(order_id) ON DELETE CASCADE,
-address_type address_type_enum NOT NULL,
-recipient_name VARCHAR(150) NOT NULL,
-postal_code CHAR(8) NOT NULL,
-street VARCHAR(150) NOT NULL,
-number VARCHAR(20) NOT NULL,
-complement VARCHAR(100),
-neighborhood VARCHAR(100) NOT NULL,
-city VARCHAR(100) NOT NULL,
-state_code CHAR(2) NOT NULL,
-country_code CHAR(2) NOT NULL DEFAULT 'BR',
-phone VARCHAR(20),
-original_address_id UUID REFERENCES address(address_id) ON DELETE SET NULL,
-created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-deleted_at TIMESTAMPTZ,
-version INTEGER NOT NULL DEFAULT 1
+CREATE INDEX idx_address_history_address_id ON address_history (address_id);
+
+-- Tabela de Categorias de Produtos
+CREATE TABLE categories (
+    category_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100) NOT NULL UNIQUE,
+    slug VARCHAR(150) NOT NULL UNIQUE,
+    description TEXT,
+    parent_category_id UUID REFERENCES categories(category_id) ON DELETE SET NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ,
+    version INTEGER NOT NULL DEFAULT 1
 );
+CREATE INDEX idx_categories_parent_category_id ON categories (parent_category_id) WHERE parent_category_id IS NOT NULL;
+CREATE INDEX idx_categories_is_active ON categories (is_active) WHERE deleted_at IS NULL;
+CREATE TRIGGER set_timestamp_categories BEFORE UPDATE ON categories FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
 
-CREATE TRIGGER set_timestamp_order_address
-BEFORE UPDATE ON order_address FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
-
-- - ================================================
--- TABELA: cart
--- ================================================
-CREATE TABLE cart (
-cart_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-client_id UUID UNIQUE NOT NULL REFERENCES client(client_id) ON DELETE CASCADE,
-created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-deleted_at TIMESTAMPTZ,
-expires_at TIMESTAMPTZ,
-version INTEGER NOT NULL DEFAULT 1
+-- Tabela de Marcas
+CREATE TABLE brands (
+    brand_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100) NOT NULL UNIQUE,
+    slug VARCHAR(150) NOT NULL UNIQUE,
+    description TEXT,
+    logo_url VARCHAR(255),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ,
+    version INTEGER NOT NULL DEFAULT 1
 );
+CREATE INDEX idx_brands_is_active ON brands (is_active) WHERE deleted_at IS NULL;
+CREATE TRIGGER set_timestamp_brands BEFORE UPDATE ON brands FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
 
-CREATE TRIGGER set_timestamp_cart
-BEFORE UPDATE ON cart FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
-
-- - ================================================
--- TABELA: cart_item
--- ================================================
-CREATE TABLE cart_item (
-cart_item_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-cart_id UUID NOT NULL REFERENCES cart(cart_id) ON DELETE CASCADE,
-product_id UUID REFERENCES product(product_id) ON DELETE CASCADE,
-product_variant_id UUID REFERENCES product_variant(product_variant_id) ON DELETE CASCADE,
-quantity INTEGER NOT NULL,
-created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-deleted_at TIMESTAMPTZ,
-version INTEGER NOT NULL DEFAULT 1
+-- Tabela de Produtos
+CREATE TABLE products (
+    product_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    base_sku VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(150) NOT NULL,
+    slug VARCHAR(200) NOT NULL UNIQUE,
+    description TEXT,
+    category_id UUID NOT NULL REFERENCES categories(category_id) ON DELETE RESTRICT,
+    brand_id UUID REFERENCES brands(brand_id) ON DELETE SET NULL,
+    base_price NUMERIC(10,2) NOT NULL CHECK (base_price >= 0),
+    sale_price NUMERIC(10,2) CHECK (sale_price IS NULL OR sale_price >= 0),
+    sale_price_start_date TIMESTAMPTZ,
+    sale_price_end_date TIMESTAMPTZ,
+    stock_quantity INTEGER NOT NULL DEFAULT 0 CHECK (stock_quantity >= 0),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    weight_kg NUMERIC(6,3) CHECK (weight_kg IS NULL OR weight_kg > 0),
+    height_cm INTEGER CHECK (height_cm IS NULL OR height_cm > 0),
+    width_cm INTEGER CHECK (width_cm IS NULL OR width_cm > 0),
+    depth_cm INTEGER CHECK (depth_cm IS NULL OR depth_cm > 0),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ,
+    version INTEGER NOT NULL DEFAULT 1,
+    search_vector TSVECTOR, -- <<<<<<<<<<<<<<<<<<< COLUNA ADICIONADA PARA FTS
+    CONSTRAINT chk_sale_price CHECK (sale_price IS NULL OR sale_price < base_price),
+    CONSTRAINT chk_sale_dates CHECK ((sale_price IS NULL) OR (sale_price IS NOT NULL AND sale_price_start_date IS NOT NULL AND sale_price_end_date IS NOT NULL))
 );
+CREATE INDEX idx_products_category_id ON products (category_id);
+CREATE INDEX idx_products_brand_id ON products (brand_id) WHERE brand_id IS NOT NULL;
+CREATE INDEX idx_products_is_active ON products (is_active) WHERE deleted_at IS NULL;
+CREATE INDEX idx_products_search_vector ON products USING GIN (search_vector); -- <<<<<<< ÍNDICE GIN ADICIONADO
+CREATE TRIGGER set_timestamp_products BEFORE UPDATE ON products FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+CREATE TRIGGER update_search_vector_trigger BEFORE INSERT OR UPDATE ON products FOR EACH ROW EXECUTE FUNCTION trigger_update_products_search_vector(); -- <<<<<<< TRIGGER FTS ADICIONADO
+CREATE TRIGGER audit_products_trigger AFTER INSERT OR UPDATE OR DELETE ON products FOR EACH ROW EXECUTE FUNCTION trigger_log_audit('product_id');
 
-CREATE TRIGGER set_timestamp_cart_item
-BEFORE UPDATE ON cart_item FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
-
-- - ================================================
--- TABELA: favorite
--- ================================================
-CREATE TABLE favorite (
-favorite_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-client_id UUID NOT NULL REFERENCES client(client_id) ON DELETE CASCADE,
-product_id UUID NOT NULL REFERENCES product(product_id) ON DELETE CASCADE,
-created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-deleted_at TIMESTAMPTZ,
-version INTEGER NOT NULL DEFAULT 1
+-- Tabela de Imagens de Produtos
+CREATE TABLE product_images (
+    product_image_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    product_id UUID NOT NULL REFERENCES products(product_id) ON DELETE CASCADE,
+    image_url VARCHAR(255) NOT NULL,
+    alt_text VARCHAR(255),
+    is_cover BOOLEAN NOT NULL DEFAULT FALSE,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ,
+    version INTEGER NOT NULL DEFAULT 1
 );
+CREATE INDEX idx_product_images_product_id ON product_images (product_id);
+CREATE UNIQUE INDEX uq_product_images_cover_per_product ON product_images (product_id) WHERE is_cover = TRUE AND deleted_at IS NULL;
+CREATE TRIGGER set_timestamp_product_images BEFORE UPDATE ON product_images FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
 
-CREATE TRIGGER set_timestamp_favorite
-BEFORE UPDATE ON favorite FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
-
-- - ================================================
--- TABELA: review
--- ================================================
-CREATE TABLE review (
-review_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-client_id UUID REFERENCES client(client_id) ON DELETE SET NULL,
-product_id UUID NOT NULL REFERENCES product(product_id) ON DELETE CASCADE,
-rating SMALLINT NOT NULL,
-comment TEXT,
-is_approved BOOLEAN NOT NULL DEFAULT FALSE,
-created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-deleted_at TIMESTAMPTZ,
-version INTEGER NOT NULL DEFAULT 1
+-- Tabelas de Variação (Cores e Tamanhos)
+CREATE TABLE colors (
+    color_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(50) NOT NULL UNIQUE,
+    hex_code CHAR(7) UNIQUE CHECK (hex_code ~ '^#[0-9a-fA-F]{6}$'),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ,
+    version INTEGER NOT NULL DEFAULT 1
 );
+CREATE TRIGGER set_timestamp_colors BEFORE UPDATE ON colors FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
 
-CREATE TRIGGER set_timestamp_review
-BEFORE UPDATE ON review FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
-
-- - ================================================
--- TABELA: consent
--- ================================================
-CREATE TABLE consent (
-consent_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-client_id UUID NOT NULL REFERENCES client(client_id) ON DELETE CASCADE,
-type consent_type_enum NOT NULL,
-consent_subject VARCHAR(100) NOT NULL DEFAULT 'general',
-terms_version VARCHAR(30) NOT NULL,
-is_granted BOOLEAN NOT NULL,
-created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-deleted_at TIMESTAMPTZ,
-version INTEGER NOT NULL DEFAULT 1
+CREATE TABLE sizes (
+    size_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(50) NOT NULL UNIQUE,
+    size_code VARCHAR(20) UNIQUE,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ,
+    version INTEGER NOT NULL DEFAULT 1
 );
+CREATE TRIGGER set_timestamp_sizes BEFORE UPDATE ON sizes FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
 
-CREATE TRIGGER set_timestamp_consent
-BEFORE UPDATE ON consent FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
-
-- - ================================================
--- TABELA: saved_card
--- ================================================
-CREATE TABLE saved_card (
-saved_card_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-client_id UUID NOT NULL REFERENCES client(client_id) ON DELETE CASCADE,
-nickname VARCHAR(50),
-last_four_digits CHAR(4) NOT NULL,
-brand card_brand_enum NOT NULL,
-gateway_token VARCHAR(255) NOT NULL,
-expiry_date DATE NOT NULL,
-is_active BOOLEAN NOT NULL DEFAULT TRUE,
-is_default BOOLEAN NOT NULL DEFAULT FALSE,
-created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-deleted_at TIMESTAMPTZ,
-version INTEGER NOT NULL DEFAULT 1
+-- Tabela de Variações de Produto
+CREATE TABLE product_variants (
+    product_variant_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    product_id UUID NOT NULL REFERENCES products(product_id) ON DELETE CASCADE,
+    sku VARCHAR(50) NOT NULL UNIQUE,
+    color_id UUID REFERENCES colors(color_id) ON DELETE RESTRICT,
+    size_id UUID REFERENCES sizes(size_id) ON DELETE RESTRICT,
+    stock_quantity INTEGER NOT NULL DEFAULT 0 CHECK (stock_quantity >= 0),
+    additional_price NUMERIC(10,2) NOT NULL DEFAULT 0.00,
+    image_url VARCHAR(255),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ,
+    version INTEGER NOT NULL DEFAULT 1,
+    CONSTRAINT uq_product_variant_attributes UNIQUE (product_id, color_id, size_id)
 );
+CREATE INDEX idx_product_variants_product_id ON product_variants (product_id);
+CREATE INDEX idx_product_variants_color_id ON product_variants (color_id);
+CREATE INDEX idx_product_variants_size_id ON product_variants (size_id);
+CREATE TRIGGER set_timestamp_product_variants BEFORE UPDATE ON product_variants FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
 
-CREATE TRIGGER set_timestamp_saved_card
-BEFORE UPDATE ON saved_card FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
-
-- - ================================================
--- TABELA: audit_log
--- ================================================
-CREATE TABLE audit_log (
-audit_log_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-table_name VARCHAR(63),
-record_id TEXT,
-operation_type audit_operation_type_enum NOT NULL,
-previous_data JSONB,
-new_data JSONB,
-change_description TEXT,
-user_identifier TEXT,
-user_ip_address VARCHAR(45),
-logged_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-retention_expires_at TIMESTAMPTZ
+-- Tabela de Cupons
+CREATE TABLE coupons (
+    coupon_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    code VARCHAR(50) NOT NULL UNIQUE,
+    description TEXT,
+    discount_percentage NUMERIC(5,2),
+    discount_amount NUMERIC(10,2),
+    valid_from TIMESTAMPTZ NOT NULL,
+    valid_until TIMESTAMPTZ NOT NULL,
+    max_uses INTEGER,
+    times_used INTEGER NOT NULL DEFAULT 0,
+    min_purchase_amount NUMERIC(10,2),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    type coupon_type NOT NULL DEFAULT 'general',
+    client_id UUID REFERENCES clients(client_id) ON DELETE RESTRICT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ,
+    version INTEGER NOT NULL DEFAULT 1,
+    CONSTRAINT chk_discount_type CHECK ( (discount_percentage IS NOT NULL AND discount_amount IS NULL) OR (discount_percentage IS NULL AND discount_amount IS NOT NULL) ),
+    CONSTRAINT chk_valid_until CHECK (valid_until > valid_from)
 );
+CREATE INDEX idx_coupons_client_id ON coupons (client_id) WHERE type = 'user_specific';
+CREATE INDEX idx_coupons_is_active_and_valid ON coupons (is_active, valid_until) WHERE deleted_at IS NULL;
+CREATE TRIGGER set_timestamp_coupons BEFORE UPDATE ON coupons FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
 
+-- Tabela de Pedidos
+CREATE TABLE orders (
+    order_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    reference_code VARCHAR(20) UNIQUE NOT NULL DEFAULT generate_order_code(),
+    client_id UUID NOT NULL REFERENCES clients(client_id) ON DELETE RESTRICT,
+    coupon_id UUID REFERENCES coupons(coupon_id) ON DELETE SET NULL,
+    status order_status_enum NOT NULL DEFAULT 'pending',
+    items_total_amount NUMERIC(10,2) NOT NULL CHECK (items_total_amount >= 0),
+    discount_amount NUMERIC(10,2) NOT NULL DEFAULT 0.00,
+    shipping_amount NUMERIC(10,2) NOT NULL DEFAULT 0.00,
+    grand_total_amount NUMERIC(12,2) GENERATED ALWAYS AS (items_total_amount - discount_amount + shipping_amount) STORED,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ,
+    version INTEGER NOT NULL DEFAULT 1
+);
+CREATE INDEX idx_orders_client_id ON orders (client_id);
+CREATE INDEX idx_orders_coupon_id ON orders (coupon_id) WHERE coupon_id IS NOT NULL;
+CREATE INDEX idx_orders_status ON orders (status);
+CREATE INDEX idx_orders_created_at ON orders (created_at DESC);
+CREATE TRIGGER set_timestamp_orders BEFORE UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+CREATE TRIGGER audit_orders_trigger AFTER INSERT OR UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION trigger_log_audit('order_id');
 
+-- Tabela de Itens do Pedido
+CREATE TABLE order_items (
+    order_item_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id UUID NOT NULL REFERENCES orders(order_id) ON DELETE CASCADE,
+    product_variant_id UUID REFERENCES product_variants(product_variant_id) ON DELETE SET NULL,
+    item_sku VARCHAR(100) NOT NULL,
+    item_name VARCHAR(255) NOT NULL,
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    unit_price NUMERIC(10,2) NOT NULL,
+    line_item_total_amount NUMERIC(12,2) GENERATED ALWAYS AS (unit_price * quantity) STORED,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    version INTEGER NOT NULL DEFAULT 1
+);
+CREATE INDEX idx_order_items_order_id ON order_items (order_id);
+CREATE INDEX idx_order_items_product_variant_id ON order_items (product_variant_id);
+CREATE TRIGGER set_timestamp_order_items BEFORE UPDATE ON order_items FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
 
--- ================================================
--- TABELA: email_verification_token
--- ================================================
-CREATE TABLE email_verification_token (
+-- Tabela de Endereços do Pedido (snapshot do endereço no momento da compra)
+CREATE TABLE order_addresses (
+    order_address_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id UUID NOT NULL REFERENCES orders(order_id) ON DELETE CASCADE,
+    address_type address_type_enum NOT NULL,
+    recipient_name VARCHAR(255) NOT NULL,
+    postal_code CHAR(8) NOT NULL,
+    street VARCHAR(150) NOT NULL,
+    street_number VARCHAR(20) NOT NULL,
+    complement VARCHAR(100),
+    neighborhood VARCHAR(100) NOT NULL,
+    city VARCHAR(100) NOT NULL,
+    state_code CHAR(2) NOT NULL,
+    country_code CHAR(2) NOT NULL DEFAULT 'BR',
+    phone VARCHAR(20),
+    original_address_id UUID REFERENCES addresses(address_id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_order_addresses_order_id ON order_addresses (order_id);
+
+-- Tabela de Pagamentos
+CREATE TABLE payments (
+    payment_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id UUID NOT NULL REFERENCES orders(order_id) ON DELETE RESTRICT,
+    method payment_method_enum NOT NULL,
+    status payment_status_enum NOT NULL DEFAULT 'pending',
+    amount NUMERIC(10,2) NOT NULL,
+    transaction_id VARCHAR(100) UNIQUE,
+    method_details JSONB,
+    processed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    version INTEGER NOT NULL DEFAULT 1
+);
+CREATE INDEX idx_payments_order_id ON payments (order_id);
+CREATE INDEX idx_payments_status ON payments (status);
+CREATE INDEX idx_payments_method_details_gin ON payments USING GIN (method_details);
+CREATE TRIGGER set_timestamp_payments BEFORE UPDATE ON payments FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+
+-- Tabela de Carrinhos de Compra
+CREATE TABLE carts (
+    cart_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    client_id UUID UNIQUE REFERENCES clients(client_id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMPTZ
+);
+CREATE TRIGGER set_timestamp_carts BEFORE UPDATE ON carts FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+
+-- Tabela de Itens do Carrinho
+CREATE TABLE cart_items (
+    cart_item_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    cart_id UUID NOT NULL REFERENCES carts(cart_id) ON DELETE CASCADE,
+    product_variant_id UUID NOT NULL REFERENCES product_variants(product_variant_id) ON DELETE CASCADE,
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_cart_item_variant UNIQUE (cart_id, product_variant_id)
+);
+CREATE INDEX idx_cart_items_cart_id ON cart_items (cart_id);
+CREATE INDEX idx_cart_items_product_variant_id ON cart_items (product_variant_id);
+CREATE TRIGGER set_timestamp_cart_items BEFORE UPDATE ON cart_items FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+
+-- Tabela de Avaliações de Produto
+CREATE TABLE reviews (
+    review_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    client_id UUID REFERENCES clients(client_id) ON DELETE SET NULL,
+    product_id UUID NOT NULL REFERENCES products(product_id) ON DELETE CASCADE,
+    order_id UUID REFERENCES orders(order_id) ON DELETE SET NULL,
+    rating SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    comment TEXT,
+    is_approved BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ,
+    version INTEGER NOT NULL DEFAULT 1
+);
+CREATE INDEX idx_reviews_client_id ON reviews (client_id);
+CREATE INDEX idx_reviews_product_id ON reviews (product_id);
+CREATE INDEX idx_reviews_is_approved ON reviews (is_approved);
+CREATE TRIGGER set_timestamp_reviews BEFORE UPDATE ON reviews FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+
+-- Tabela de tokens de verificação de e-mail
+CREATE TABLE email_verification_tokens (
     token_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    client_id UUID NOT NULL REFERENCES client(client_id) ON DELETE CASCADE,
-    token_hash VARCHAR(255) NOT NULL UNIQUE, -- Armazenamos o hash do token, não o token em si
+    client_id UUID NOT NULL REFERENCES clients(client_id) ON DELETE CASCADE,
+    token_hash VARCHAR(255) NOT NULL UNIQUE,
     expires_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE INDEX idx_evt_client_id ON email_verification_tokens (client_id);
 
-CREATE INDEX idx_evt_client_id ON email_verification_token (client_id);
+-- Tabela de consentimentos (LGPD)
+CREATE TABLE consents (
+    consent_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    client_id UUID NOT NULL REFERENCES clients(client_id) ON DELETE CASCADE,
+    type consent_type_enum NOT NULL,
+    terms_version VARCHAR(30),
+    is_granted BOOLEAN NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    version INTEGER NOT NULL DEFAULT 1,
+    CONSTRAINT uq_client_consent_type UNIQUE (client_id, type)
+);
+CREATE INDEX idx_consents_client_id ON consents (client_id);
+CREATE TRIGGER set_timestamp_consents BEFORE UPDATE ON consents FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+
+-- Tabela de cartões salvos
+CREATE TABLE saved_cards (
+    saved_card_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    client_id UUID NOT NULL REFERENCES clients(client_id) ON DELETE CASCADE,
+    nickname VARCHAR(50),
+    last_four_digits CHAR(4) NOT NULL,
+    brand card_brand_enum NOT NULL,
+    gateway_token VARCHAR(255) NOT NULL UNIQUE,
+    expiry_date DATE NOT NULL,
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ,
+    version INTEGER NOT NULL DEFAULT 1
+);
+CREATE INDEX idx_saved_cards_client_id ON saved_cards (client_id);
+CREATE UNIQUE INDEX uq_saved_cards_default_per_client ON saved_cards (client_id) WHERE is_default = TRUE AND deleted_at IS NULL;
+CREATE TRIGGER set_timestamp_saved_cards BEFORE UPDATE ON saved_cards FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+
+-- Tabela de Logs de Auditoria
+CREATE TABLE audit_log (
+    audit_log_id BIGSERIAL PRIMARY KEY,
+    table_name VARCHAR(63) NOT NULL,
+    record_id TEXT,
+    operation_type audit_operation_type_enum NOT NULL,
+    previous_data JSONB,
+    new_data JSONB,
+    change_description TEXT,
+    user_identifier TEXT,
+    user_ip_address INET,
+    logged_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_audit_log_table_record ON audit_log (table_name, record_id);
+CREATE INDEX idx_audit_log_logged_at ON audit_log (logged_at DESC);
+CREATE INDEX idx_audit_log_user_identifier ON audit_log (user_identifier);
+
+-- =====================================================================
+-- SEÇÃO DE NOTAS DE IMPLEMENTAÇÃO E MANUTENÇÃO
+-- (Estes comandos devem ser executados e gerenciados pela aplicação ou pela equipe de DevOps)
+-- =====================================================================
+
+/*
+-- NOTA 1: LÓGICA DE APLICAÇÃO PARA GERENCIAMENTO DE ESTOQUE
+-- Para evitar condições de corrida (race conditions) ao abater o estoque durante uma compra,
+-- a transação na aplicação deve usar um bloqueio pessimista.
+-- O DDL do banco de dados não pode forçar isso; deve ser implementado no código da aplicação.
+--
+-- Exemplo de fluxo transacional em pseudocódigo SQL:
+BEGIN;
+
+-- 1. Bloqueia a linha do produto/variante para garantir a leitura mais atual e evitar alterações concorrentes.
+SELECT stock_quantity FROM product_variants WHERE product_variant_id = ? FOR UPDATE;
+
+-- 2. No código da aplicação, verifique se a quantidade em estoque é suficiente.
+--    Se for, continue. Se não, aborte a transação com ROLLBACK.
+
+-- 3. Abata o estoque.
+UPDATE product_variants SET stock_quantity = stock_quantity - ? WHERE product_variant_id = ?;
+
+-- 4. Insira o pedido e seus itens.
+INSERT INTO orders (...) VALUES (...);
+INSERT INTO order_items (...) VALUES (...);
+
+-- 5. Finalize a transação.
+COMMIT;
+*/
 
 
+/*
+-- NOTA 2: MANUTENÇÃO DE CARRINHOS EXPIRADOS
+-- A tabela `carts` possui uma coluna `expires_at` que deve ser usada para limpar dados obsoletos.
+-- Isso deve ser feito por um job agendado. A extensão pg_cron é ideal para isso.
+--
+-- Exemplo de comando para agendar a limpeza para rodar diariamente às 03:00 da manhã:
+-- (Este comando deve ser executado uma vez no banco de dados onde pg_cron está instalado)
+--
+-- CREATE EXTENSION IF NOT EXISTS pg_cron;
+-- SELECT cron.schedule(
+--   'cart-cleanup-job',
+--   '0 3 * * *', -- "Às 03:00 todos os dias"
+--   $$ DELETE FROM carts WHERE expires_at < NOW() $$
+-- );
+*/
 
-
-
-
-UPDATE client
-SET
-    email_verified_at = CURRENT_TIMESTAMP,
-    updated_at = CURRENT_TIMESTAMP
-WHERE
-    client_id = 'dcf17a46-1a6d-4883-a141-9e9de29c4310';
+-- =====================================================================
+-- FIM DO SCRIPT
+-- =====================================================================
