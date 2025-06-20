@@ -1,6 +1,7 @@
 using Bcommerce.Domain.Catalog.Products;
 using Bcommerce.Domain.Catalog.Products.Entities;
 using Bcommerce.Domain.Catalog.Products.Repositories;
+using Bcommerce.Domain.Catalog.Products.ValueObjects;
 using Bcommerce.Domain.Common;
 using Bcommerce.Infrastructure.Data.Models;
 using Dapper;
@@ -29,7 +30,8 @@ public class ProductRepository : IProductRepository
                 WHERE p.product_id = @Id AND p.deleted_at IS NULL;
             ";
             
-            return await QueryAndHydrateProduct(sql, new { Id = id });
+            var product = await QueryAndHydrateProduct(sql, new { Id = id });
+            return product.FirstOrDefault();
         }
         
         public async Task<Product?> GetBySlugAsync(string slug, CancellationToken cancellationToken)
@@ -45,7 +47,8 @@ public class ProductRepository : IProductRepository
                 WHERE p.slug = @Slug AND p.deleted_at IS NULL;
             ";
 
-            return await QueryAndHydrateProduct(sql, new { Slug = slug });
+            var product = await QueryAndHydrateProduct(sql, new { Slug = slug });
+            return product.FirstOrDefault();
         }
 
         public async Task Insert(Product aggregate, CancellationToken cancellationToken)
@@ -68,36 +71,68 @@ public class ProductRepository : IProductRepository
                 aggregate.CreatedAt, aggregate.UpdatedAt
             }, _uow.Transaction, cancellationToken: cancellationToken));
             
-            // Inserir entidades filhas
             await InsertImages(aggregate.Images, cancellationToken);
             await InsertVariants(aggregate.Variants, cancellationToken);
         }
         
-        public async Task Update(Product aggregate, CancellationToken cancellationToken)
+        public Task Update(Product aggregate, CancellationToken cancellationToken)
         {
-            // Lógica de Update é mais complexa:
-            // 1. Atualiza a entidade principal 'products'.
-            // 2. Deleta (ou soft-delete) imagens/variantes que não existem mais no agregado.
-            // 3. Atualiza imagens/variantes existentes.
-            // 4. Insere novas imagens/variantes.
-            // Tudo isso deve ocorrer dentro da transação do UoW.
-            // Por simplicidade, vamos focar no Get e Insert que são os mais didáticos.
             throw new NotImplementedException("Update de agregados complexos requer uma estratégia de sincronização.");
         }
 
         public Task Delete(Product aggregate, CancellationToken cancellationToken)
         {
-            // Implementaria o soft-delete na tabela principal
             const string sql = "UPDATE products SET deleted_at = @Now WHERE product_id = @Id;";
             return _uow.Connection.ExecuteAsync(new CommandDefinition(sql, new { aggregate.Id, Now = DateTime.UtcNow }, _uow.Transaction, cancellationToken: cancellationToken));
         }
 
-        // Método auxiliar que executa a query e hidrata o agregado
-        private async Task<Product?> QueryAndHydrateProduct(string sql, object param)
+        public async Task<Product?> GetByBaseSkuAsync(string baseSku, CancellationToken cancellationToken)
+        {
+            const string sql = @"
+                SELECT 
+                    p.*,
+                    pi.product_image_id as Id, pi.*,
+                    pv.product_variant_id as Id, pv.*
+                FROM products p
+                LEFT JOIN product_images pi ON p.product_id = pi.product_id AND pi.deleted_at IS NULL
+                LEFT JOIN product_variants pv ON p.product_id = pv.product_id AND pv.deleted_at IS NULL
+                WHERE p.base_sku = @BaseSku AND p.deleted_at IS NULL;
+            ";
+            var product = await QueryAndHydrateProduct(sql, new { BaseSku = baseSku });
+            return product.FirstOrDefault();
+        }
+
+        public async Task<IEnumerable<Product>> SearchAsync(string searchTerm, int page, int pageSize, CancellationToken cancellationToken)
+        {
+            var query = string.Join(" & ", searchTerm.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+
+            const string sql = @"
+                SELECT 
+                    p.*,
+                    pi.product_image_id as Id, pi.*,
+                    pv.product_variant_id as Id, pv.*
+                FROM products p
+                LEFT JOIN product_images pi ON p.product_id = pi.product_id AND pi.deleted_at IS NULL
+                LEFT JOIN product_variants pv ON p.product_id = pv.product_id AND pv.deleted_at IS NULL
+                WHERE p.deleted_at IS NULL
+                  AND p.search_vector @@ to_tsquery('portuguese', @Query)
+                ORDER BY ts_rank(p.search_vector, to_tsquery('portuguese', @Query)) DESC
+                LIMIT @PageSize OFFSET @Offset;
+            ";
+            
+            return await QueryAndHydrateProduct(sql, new
+            {
+                Query = query,
+                PageSize = pageSize,
+                Offset = (page - 1) * pageSize
+            });
+        }
+
+        private async Task<IEnumerable<Product>> QueryAndHydrateProduct(string sql, object param)
         {
             var productDict = new Dictionary<Guid, Product>();
 
-            await _uow.Connection.QueryAsync<ProductDataModel, ProductImageDataModel, ProductVariantDataModel, bool>(
+            await _uow.Connection.QueryAsync<ProductDataModel, ProductImageDataModel, ProductVariantDataModel, Product>(
                 sql,
                 (productData, imageData, variantData) =>
                 {
@@ -107,26 +142,28 @@ public class ProductRepository : IProductRepository
                         productDict.Add(product.Id, product);
                     }
 
-                    if (imageData != null && product.Images.All(i => i.Id != imageData.Id))
+                    if (imageData != null && product.Images.All(i => i.Id != imageData.product_image_id))
                     {
-                        product.AddImage(HydrateImage(imageData));
+                         var image = ProductImage.NewImage(imageData.product_id, imageData.image_url, imageData.alt_text, imageData.is_cover, imageData.sort_order);
+                         // Adicionando a imagem diretamente à coleção interna (uma alternativa à exposição de um método Add)
+                         (product.Images as List<ProductImage>)?.Add(image);
                     }
 
-                    if (variantData != null && product.Variants.All(v => v.Id != variantData.Id))
+                    if (variantData != null && product.Variants.All(v => v.Id != variantData.product_variant_id))
                     {
-                        product.AddVariant(HydrateVariant(variantData));
+                        // Adicionando a variante diretamente à coleção interna
+                        (product.Variants as List<ProductVariant>)?.Add(HydrateVariant(variantData));
                     }
                     
-                    return true;
+                    return product;
                 },
                 param,
-                transaction: _uow.Transaction,
-                splitOn: "Id,Id" // Dapper divide o resultado com base nos IDs das tabelas
+                transaction: _uow.HasActiveTransaction ? _uow.Transaction : null,
+                splitOn: "Id,Id"
             );
-            return productDict.Values.FirstOrDefault();
+            return productDict.Values;
         }
 
-        // Métodos de hidratação (reconstroem as entidades do domínio a partir dos Data Models)
         private static Product HydrateProduct(ProductDataModel model)
         {
             return Product.With(
@@ -137,26 +174,25 @@ public class ProductRepository : IProductRepository
                 model.stock_quantity, model.is_active,
                 Dimensions.Create(model.weight_kg, model.height_cm, model.width_cm, model.depth_cm),
                 model.category_id, model.brand_id,
-                new List<ProductImage>(), new List<ProductVariant>() // Inicia coleções vazias
+                model.created_at, model.updated_at, // Parâmetros adicionados
+                new List<ProductImage>(), new List<ProductVariant>()
             );
-        }
-
-        private static ProductImage HydrateImage(ProductImageDataModel model)
-        {
-            return ProductImage.With(model.Id, model.product_id, model.image_url, model.alt_text, model.is_cover, model.sort_order);
         }
 
         private static ProductVariant HydrateVariant(ProductVariantDataModel model)
         {
-            return ProductVariant.With(model.Id, model.product_id, model.sku, model.color_id, model.size_id, model.stock_quantity, Money.Create(model.additional_price), model.is_active);
+            return ProductVariant.With(
+                model.product_variant_id, model.product_id, model.sku, model.color_id, model.size_id, 
+                model.stock_quantity, Money.Create(model.additional_price), 
+                model.image_url, model.is_active
+            );
         }
 
-        // Métodos auxiliares para inserir coleções
         private async Task InsertImages(IEnumerable<ProductImage> images, CancellationToken cancellationToken)
         {
             const string imageSql = @"
-                INSERT INTO product_images (product_image_id, product_id, image_url, alt_text, is_cover, sort_order)
-                VALUES (@Id, @ProductId, @ImageUrl, @AltText, @IsCover, @SortOrder);
+                INSERT INTO product_images (product_image_id, product_id, image_url, alt_text, is_cover, sort_order, version)
+                VALUES (@Id, @ProductId, @ImageUrl, @AltText, @IsCover, @SortOrder, 1);
             ";
             foreach (var image in images)
             {
@@ -167,21 +203,19 @@ public class ProductRepository : IProductRepository
         private async Task InsertVariants(IEnumerable<ProductVariant> variants, CancellationToken cancellationToken)
         {
              const string variantSql = @"
-                INSERT INTO product_variants (product_variant_id, product_id, sku, color_id, size_id, stock_quantity, additional_price, is_active)
-                VALUES (@Id, @ProductId, @Sku, @ColorId, @SizeId, @StockQuantity, @AdditionalPriceAmount, @IsActive);
+                INSERT INTO product_variants (product_variant_id, product_id, sku, color_id, size_id, stock_quantity, additional_price, image_url, is_active, version)
+                VALUES (@Id, @ProductId, @Sku, @ColorId, @SizeId, @StockQuantity, @AdditionalPriceAmount, @ImageUrl, @IsActive, 1);
             ";
             foreach (var variant in variants)
             {
                 await _uow.Connection.ExecuteAsync(new CommandDefinition(variantSql, new
                 {
-                    variant.Id, variant.ProductId, variant.Sku, variant.ColorId, variant.SizeId, variant.StockQuantity,
+                    variant.Id, variant.ProductId, variant.Sku, variant.ColorId, variant.SizeId, 
+                    variant.StockQuantity,
                     AdditionalPriceAmount = variant.AdditionalPrice.Amount,
+                    variant.ImageUrl,
                     variant.IsActive
                 }, _uow.Transaction, cancellationToken: cancellationToken));
             }
         }
-
-        // Demais métodos da interface (GetByBaseSkuAsync, SearchAsync) seguiriam a mesma lógica de query e hidratação.
-        public Task<Product?> GetByBaseSkuAsync(string baseSku, CancellationToken cancellationToken) => throw new NotImplementedException();
-        public Task<IEnumerable<Product>> SearchAsync(string searchTerm, int page, int pageSize, CancellationToken cancellationToken) => throw new NotImplementedException();
     }

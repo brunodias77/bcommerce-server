@@ -1,7 +1,8 @@
-using Bcommerce.Domain.Clients;
-using Bcommerce.Domain.Clients.enums;
 
-namespace Bcomerce.Application.UseCases.Clients.AddAddress;
+using Bcommerce.Domain.Customers.Clients.Entities;
+using Bcommerce.Domain.Customers.Clients.Enums;
+
+namespace Bcomerce.Application.UseCases.Catalog.Clients.AddAddress;
 
 public record AddressOutput(
     Guid Id,
@@ -9,7 +10,7 @@ public record AddressOutput(
     AddressType Type,
     string PostalCode,
     string Street,
-    string Number,
+    string StreetNumber, // Renomeado
     string? Complement,
     string Neighborhood,
     string City,
@@ -25,7 +26,7 @@ public record AddressOutput(
             address.Type,
             address.PostalCode,
             address.Street,
-            address.Number,
+            address.StreetNumber, // Renomeado
             address.Complement,
             address.Neighborhood,
             address.City,

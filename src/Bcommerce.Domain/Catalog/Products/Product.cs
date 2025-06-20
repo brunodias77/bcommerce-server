@@ -19,9 +19,11 @@ public class Product : AggregateRoot
         public Money? SalePrice { get; private set; }
         public DateTime? SalePriceStartDate { get; private set; }
         public DateTime? SalePriceEndDate { get; private set; }
-        public int StockQuantity { get; private set; } // Para produtos sem variação
+        public int StockQuantity { get; private set; }
         public bool IsActive { get; private set; }
         public Dimensions Dimensions { get; private set; }
+        public DateTime CreatedAt { get; private set; } // ADICIONADO
+        public DateTime UpdatedAt { get; private set; } // ADICIONADO
 
         // Referências a outros agregados
         public Guid CategoryId { get; private set; }
@@ -51,12 +53,13 @@ public class Product : AggregateRoot
                 CategoryId = categoryId,
                 BrandId = brandId,
                 Dimensions = dimensions,
-                Slug = GenerateSlug(name), // A geração do slug pode ser mais robusta
-                IsActive = true
+                Slug = GenerateSlug(name),
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow, // ADICIONADO
+                UpdatedAt = DateTime.UtcNow  // ADICIONADO
             };
 
             product.Validate(handler);
-            // Lógica de evento de criação aqui, se necessário
             return product;
         }
         
@@ -64,6 +67,7 @@ public class Product : AggregateRoot
             Guid id, string baseSku, string name, string slug, string? description,
             Money basePrice, Money? salePrice, DateTime? salePriceStartDate, DateTime? salePriceEndDate, 
             int stockQuantity, bool isActive, Dimensions dimensions, Guid categoryId, Guid? brandId,
+            DateTime createdAt, DateTime updatedAt, // ADICIONADO
             IEnumerable<ProductImage>? images, IEnumerable<ProductVariant>? variants)
         {
             var product = new Product
@@ -81,7 +85,9 @@ public class Product : AggregateRoot
                 IsActive = isActive,
                 Dimensions = dimensions,
                 CategoryId = categoryId,
-                BrandId = brandId
+                BrandId = brandId,
+                CreatedAt = createdAt, // ADICIONADO
+                UpdatedAt = updatedAt  // ADICIONADO
             };
 
             if (images != null) product._images.AddRange(images);
@@ -104,6 +110,7 @@ public class Product : AggregateRoot
             
             var newImage = ProductImage.NewImage(Id, imageUrl, altText, isCover, sortOrder);
             _images.Add(newImage);
+            UpdatedAt = DateTime.UtcNow;
         }
         
         public void AddVariant(ProductVariant variant)
@@ -115,12 +122,14 @@ public class Product : AggregateRoot
             DomainException.ThrowWhen(skuExists, $"O SKU '{variant.Sku}' já está em uso por outra variante neste produto.");
 
             _variants.Add(variant);
+            UpdatedAt = DateTime.UtcNow;
         }
 
         public void ChangeBasePrice(Money newPrice)
         {
             DomainException.ThrowWhen(newPrice.Amount <= 0, "O preço base deve ser positivo.");
             BasePrice = newPrice;
+            UpdatedAt = DateTime.UtcNow;
         }
 
         public void SetSalePrice(Money salePrice, DateTime startDate, DateTime endDate)
@@ -131,6 +140,7 @@ public class Product : AggregateRoot
             SalePrice = salePrice;
             SalePriceStartDate = startDate;
             SalePriceEndDate = endDate;
+            UpdatedAt = DateTime.UtcNow;
         }
 
         public void RemoveSalePrice()
@@ -138,22 +148,21 @@ public class Product : AggregateRoot
             SalePrice = null;
             SalePriceStartDate = null;
             SalePriceEndDate = null;
+            UpdatedAt = DateTime.UtcNow;
         }
 
         public void AdjustStock(int quantity)
         {
             DomainException.ThrowWhen(quantity < 0, "A quantidade em estoque não pode ser negativa.");
             StockQuantity = quantity;
+            UpdatedAt = DateTime.UtcNow;
         }
 
         private static string GenerateSlug(string text)
         {
-            // Esta é uma implementação simples. Em um cenário real, considere remover acentos,
-            // caracteres especiais e garantir a unicidade.
             return text.ToLowerInvariant().Replace(" ", "-");
         }
     }
-
 
 
 

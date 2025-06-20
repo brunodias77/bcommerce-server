@@ -470,11 +470,15 @@ CREATE TABLE carts (
 CREATE TRIGGER set_timestamp_carts BEFORE UPDATE ON carts FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
 
 -- Tabela de Itens do Carrinho
+
 CREATE TABLE cart_items (
     cart_item_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     cart_id UUID NOT NULL REFERENCES carts(cart_id) ON DELETE CASCADE,
     product_variant_id UUID NOT NULL REFERENCES product_variants(product_variant_id) ON DELETE CASCADE,
     quantity INTEGER NOT NULL CHECK (quantity > 0),
+    unit_price NUMERIC(10,2) NOT NULL,
+    currency CHAR(3) NOT NULL DEFAULT 'BRL',
+    --------------------------------------------------
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uq_cart_item_variant UNIQUE (cart_id, product_variant_id)
@@ -482,6 +486,7 @@ CREATE TABLE cart_items (
 CREATE INDEX idx_cart_items_cart_id ON cart_items (cart_id);
 CREATE INDEX idx_cart_items_product_variant_id ON cart_items (product_variant_id);
 CREATE TRIGGER set_timestamp_cart_items BEFORE UPDATE ON cart_items FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+
 
 -- Tabela de Avaliações de Produto
 CREATE TABLE reviews (

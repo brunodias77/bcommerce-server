@@ -9,5 +9,6 @@ public class ProductVariantDataModel
     public Guid? size_id { get; set; }
     public int stock_quantity { get; set; }
     public decimal additional_price { get; set; }
+    public string? image_url { get; set; } // ADICIONADO
     public bool is_active { get; set; }
 }

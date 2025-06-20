@@ -12,7 +12,7 @@ public class OrderAddress : Entity
     public string RecipientName { get; private set; }
     public string PostalCode { get; private set; }
     public string Street { get; private set; }
-    public string Number { get; private set; }
+    public string Number { get; private set; } // Mantido como 'Number' para consistência com a tabela order_addresses
     public string? Complement { get; private set; }
     public string Neighborhood { get; private set; }
     public string City { get; private set; }
@@ -22,7 +22,6 @@ public class OrderAddress : Entity
 
     private OrderAddress() { }
 
-    // Fábrica interna para garantir que só o agregado Order possa criar
     internal static OrderAddress CreateFrom(Guid orderId, Address sourceAddress, string recipientName, string? phone)
     {
         return new OrderAddress
@@ -32,12 +31,12 @@ public class OrderAddress : Entity
             RecipientName = recipientName,
             PostalCode = sourceAddress.PostalCode,
             Street = sourceAddress.Street,
-            Number = sourceAddress.Number,
+            Number = sourceAddress.StreetNumber, // ATUALIZADO AQUI
             Complement = sourceAddress.Complement,
             Neighborhood = sourceAddress.Neighborhood,
             City = sourceAddress.City,
             StateCode = sourceAddress.StateCode,
-            CountryCode = sourceAddress.CountryCode,
+            CountryCode = sourceAddress.CountryCode, // ATUALIZADO AQUI
             Phone = phone
         };
     }

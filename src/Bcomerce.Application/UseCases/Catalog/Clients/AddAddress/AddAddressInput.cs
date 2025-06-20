@@ -1,12 +1,12 @@
-using Bcommerce.Domain.Clients.enums;
+using Bcommerce.Domain.Customers.Clients.Enums;
 
-namespace Bcomerce.Application.UseCases.Clients.AddAddress;
+namespace Bcomerce.Application.UseCases.Catalog.Clients.AddAddress;
 
 public record AddAddressInput(
     AddressType Type,
     string PostalCode,
     string Street,
-    string Number,
+    string StreetNumber, // Renomeado
     string? Complement,
     string Neighborhood,
     string City,

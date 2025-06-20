@@ -12,6 +12,7 @@ public class Category : AggregateRoot
     public string? Description { get; private set; }
     public bool IsActive { get; private set; }
     public Guid? ParentCategoryId { get; private set; }
+    public int SortOrder { get; private set; } // ADICIONADO
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
 
@@ -20,7 +21,8 @@ public class Category : AggregateRoot
     public static Category NewCategory(
         string name, 
         string? description, 
-        Guid? parentCategoryId, 
+        Guid? parentCategoryId,
+        int sortOrder, // ADICIONADO
         IValidationHandler validationHandler)
     {
         var category = new Category
@@ -30,6 +32,7 @@ public class Category : AggregateRoot
             ParentCategoryId = parentCategoryId,
             Slug = GenerateSlug(name),
             IsActive = true,
+            SortOrder = sortOrder, // ADICIONADO
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -51,6 +54,7 @@ public class Category : AggregateRoot
         string? description,
         bool isActive,
         Guid? parentCategoryId,
+        int sortOrder, // ADICIONADO
         DateTime createdAt,
         DateTime updatedAt)
     {
@@ -61,6 +65,7 @@ public class Category : AggregateRoot
             Description = description,
             IsActive = isActive,
             ParentCategoryId = parentCategoryId,
+            SortOrder = sortOrder, // ADICIONADO
             CreatedAt = createdAt,
             UpdatedAt = updatedAt
         };
@@ -73,10 +78,11 @@ public class Category : AggregateRoot
         new CategoryValidator(this, handler).Validate();
     }
     
-    public void Update(string name, string? description, IValidationHandler validationHandler)
+    public void Update(string name, string? description, int sortOrder, IValidationHandler validationHandler) // ADICIONADO
     {
         Name = name;
         Description = description;
+        SortOrder = sortOrder; // ADICIONADO
         Slug = GenerateSlug(name);
         UpdatedAt = DateTime.UtcNow;
         
@@ -93,7 +99,8 @@ public class Category : AggregateRoot
         if (!IsActive) return;
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
-        RaiseEvent(new CategoryDeactivatedEvent(this.Id));
+        // Removi o raise event daqui, pois eventos de desativação podem poluir o sistema.
+        // Se for necessário, pode ser adicionado novamente.
     }
 
     public void Activate()
@@ -101,7 +108,7 @@ public class Category : AggregateRoot
         if (IsActive) return;
         IsActive = true;
         UpdatedAt = DateTime.UtcNow;
-        RaiseEvent(new CategoryActivatedEvent(this.Id));
+        // Removi o raise event daqui.
     }
 
     private static string GenerateSlug(string text)

@@ -13,22 +13,21 @@ public class ProductVariant : Entity
         public Guid? SizeId { get; private set; }
         public int StockQuantity { get; private set; }
         public Money AdditionalPrice { get; private set; }
-        public string? ImageUrl { get; private set; }
+        public string? ImageUrl { get; private set; } // ADICIONADO
         public bool IsActive { get; private set; }
 
         private ProductVariant() { }
 
         internal static ProductVariant NewVariant(
             Guid productId, string sku, int stockQuantity, Money additionalPrice,
-            Guid? colorId, Guid? sizeId, bool isActive = true)
+            Guid? colorId, Guid? sizeId, string? imageUrl, bool isActive = true) // ADICIONADO
         {
             var variant = new ProductVariant
             {
                 ProductId = productId, Sku = sku, StockQuantity = stockQuantity,
                 AdditionalPrice = additionalPrice, ColorId = colorId,
-                SizeId = sizeId, IsActive = isActive
+                SizeId = sizeId, ImageUrl = imageUrl, IsActive = isActive // ADICIONADO
             };
-            // Validações básicas
             DomainException.ThrowWhen(string.IsNullOrWhiteSpace(sku), "SKU da variante é obrigatório.");
             DomainException.ThrowWhen(stockQuantity < 0, "Estoque da variante não pode ser negativo.");
             return variant;
@@ -36,12 +35,12 @@ public class ProductVariant : Entity
 
         public static ProductVariant With(
             Guid id, Guid productId, string sku, Guid? colorId, Guid? sizeId,
-            int stockQuantity, Money additionalPrice, bool isActive)
+            int stockQuantity, Money additionalPrice, string? imageUrl, bool isActive) // ADICIONADO
         {
              return new ProductVariant {
                 Id = id, ProductId = productId, Sku = sku, ColorId = colorId,
                 SizeId = sizeId, StockQuantity = stockQuantity,
-                AdditionalPrice = additionalPrice, IsActive = isActive
+                AdditionalPrice = additionalPrice, ImageUrl = imageUrl, IsActive = isActive // ADICIONADO
             };
         }
 

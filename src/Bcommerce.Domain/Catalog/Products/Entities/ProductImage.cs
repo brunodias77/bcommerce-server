@@ -14,7 +14,7 @@ public class ProductImage : Entity
     private ProductImage() { }
     
     // Este método de fábrica é chamado pelo Agregado Product
-    internal static ProductImage NewImage(
+    public static ProductImage NewImage(
         Guid productId, string imageUrl, string? altText, bool isCover, int sortOrder)
     {
         // Validações simples aqui

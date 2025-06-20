@@ -13,18 +13,33 @@ public class EmailVerificationToken : Entity
 
     private EmailVerificationToken() { }
         
-    // Fábrica para ser usada pelo `ClientCreatedEventHandler`
     public static EmailVerificationToken NewToken(Guid clientId, string tokenHash, TimeSpan validityDuration)
     {
         DomainException.ThrowWhen(clientId == Guid.Empty, "ClientId é obrigatório para criar um token.");
         DomainException.ThrowWhen(string.IsNullOrWhiteSpace(tokenHash), "O hash do token é obrigatório.");
 
-        return new EmailVerificationToken
+        var token = new EmailVerificationToken
         {
+            // Id é gerado automaticamente pelo construtor da classe base 'Entity'
             ClientId = clientId,
             TokenHash = tokenHash,
             CreatedAt = DateTime.UtcNow,
             ExpiresAt = DateTime.UtcNow.Add(validityDuration)
+        };
+        token.Validate(Bcommerce.Domain.Validation.Handlers.Notification.Create());
+        return token;
+    }
+
+    // MÉTODO 'WITH' ADICIONADO PARA HIDRATAÇÃO
+    public static EmailVerificationToken With(Guid id, Guid clientId, string tokenHash, DateTime expiresAt, DateTime createdAt)
+    {
+        return new EmailVerificationToken
+        {
+            Id = id,
+            ClientId = clientId,
+            TokenHash = tokenHash,
+            ExpiresAt = expiresAt,
+            CreatedAt = createdAt
         };
     }
 
@@ -34,5 +49,7 @@ public class EmailVerificationToken : Entity
     {
         if (ClientId == Guid.Empty)
             handler.Append(new Error("Token deve estar associado a um cliente."));
+        if (Id == Guid.Empty)
+            handler.Append(new Error("Token deve ter um Id."));
     }
 }

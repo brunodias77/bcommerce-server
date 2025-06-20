@@ -1,11 +1,11 @@
 using Bcomerce.Application.Abstractions;
-using Bcommerce.Domain.Clients;
-using Bcommerce.Domain.Clients.Repositories;
+using Bcommerce.Domain.Customers.Clients.Entities;
 using Bcommerce.Domain.Services;
-using Bcommerce.Domain.Validations.Handlers;
+using Bcommerce.Domain.Validation.Handlers;
 using Bcommerce.Infrastructure.Data.Repositories;
 
-namespace Bcomerce.Application.UseCases.Clients.AddAddress;
+namespace Bcomerce.Application.UseCases.Catalog.Clients.AddAddress;
+
 
 public class AddAddressUseCase : IAddAddressUseCase
 {
@@ -29,7 +29,7 @@ public class AddAddressUseCase : IAddAddressUseCase
             input.Type,
             input.PostalCode,
             input.Street,
-            input.Number,
+            input.StreetNumber,
             input.Complement,
             input.Neighborhood,
             input.City,
@@ -38,7 +38,7 @@ public class AddAddressUseCase : IAddAddressUseCase
             notification
         );
         
-        if (notification.HasError())
+        if (notification.GetErrors() > 0)
         {
             return Result<AddressOutput, Notification>.Fail(notification);
         }

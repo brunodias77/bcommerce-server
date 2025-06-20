@@ -1,13 +1,12 @@
-using Bcommerce.Domain.Clients.enums;
+using Bcommerce.Domain.Customers.Clients.Enums;
 
 namespace Bcomerce.Application.UseCases.Clients.UpdateAddress;
 
-public record UpdateAddressInput(
-    Guid AddressId,
+public record UpdateAddressPayload(
     AddressType Type,
     string PostalCode,
     string Street,
-    string Number,
+    string StreetNumber, // Renomeado
     string? Complement,
     string Neighborhood,
     string City,

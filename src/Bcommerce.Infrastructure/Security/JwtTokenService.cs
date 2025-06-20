@@ -1,9 +1,8 @@
-using Bcommerce.Domain.Clients;
 using Bcommerce.Domain.Services;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Bcommerce.Domain.Clients;
+using Bcommerce.Domain.Customers.Clients;
 using Bcommerce.Domain.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -23,15 +22,23 @@ public class JwtTokenService : ITokenService
     public string GenerateToken(Client client)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
-        // A chave secreta está no seu appsettings.json
-        var key = Encoding.ASCII.GetBytes(_configuration["Settings:JwtSettings:SigninKey"]);
+        
+        // A chave secreta é lida do appsettings.json
+        var signinKey = _configuration["Settings:JwtSettings:SigninKey"];
+        var key = Encoding.ASCII.GetBytes(signinKey);
+
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, client.Id.ToString()), // Subject (o ID do usuário)
-            new(JwtRegisteredClaimNames.Email, client.Email),
+            
+            // CORREÇÃO APLICADA AQUI:
+            // Acessamos a propriedade .Value do Value Object Email.
+            new(JwtRegisteredClaimNames.Email, client.Email.Value), 
+            
             new(JwtRegisteredClaimNames.Name, client.FirstName),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()) // JWT ID (para evitar replay attacks)
         };
+
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),
@@ -40,6 +47,7 @@ public class JwtTokenService : ITokenService
             Audience = _configuration["Settings:JwtSettings:Audience"],
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
         };
+
         var securityToken = tokenHandler.CreateToken(tokenDescriptor);
         return tokenHandler.WriteToken(securityToken);
     }

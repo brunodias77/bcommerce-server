@@ -11,12 +11,12 @@ public class Address : Entity
         public AddressType Type { get; private set; }
         public string PostalCode { get; private set; }
         public string Street { get; private set; }
-        public string Number { get; private set; }
+        public string StreetNumber { get; private set; } // RENOMEADO DE 'Number'
         public string? Complement { get; private set; }
         public string Neighborhood { get; private set; }
         public string City { get; private set; }
         public string StateCode { get; private set; }
-        public string CountryCode { get; private set; }
+        public string CountryCode { get; private set; } // ADICIONADO
         public bool IsDefault { get; private set; }
         public DateTime CreatedAt { get; private set; }
         public DateTime UpdatedAt { get; private set; }
@@ -25,13 +25,14 @@ public class Address : Entity
         private Address() {}
 
         public static Address NewAddress(
-            Guid clientId, AddressType type, string postalCode, string street, string number,
+            Guid clientId, AddressType type, string postalCode, string street, string streetNumber, // Parâmetro renomeado
             string? complement, string neighborhood, string city, string stateCode, bool isDefault,
             IValidationHandler handler)
         {
             var address = new Address {
                 ClientId = clientId, Type = type, PostalCode = postalCode, Street = street,
-                Number = number, Complement = complement, Neighborhood = neighborhood, City = city,
+                StreetNumber = streetNumber, // Atribuição corrigida
+                Complement = complement, Neighborhood = neighborhood, City = city,
                 StateCode = stateCode, CountryCode = "BR", IsDefault = isDefault,
                 CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
             };
@@ -40,24 +41,25 @@ public class Address : Entity
         }
 
         public static Address With(
-             Guid id, Guid clientId, AddressType type, string postalCode, string street, string number,
-             string? complement, string neighborhood, string city, string stateCode, string countryCode,
+             Guid id, Guid clientId, AddressType type, string postalCode, string street, string streetNumber, // Parâmetro renomeado
+             string? complement, string neighborhood, string city, string stateCode, string countryCode, // Parâmetro adicionado
              bool isDefault, DateTime createdAt, DateTime updatedAt, DateTime? deletedAt)
         {
             var address = new Address {
                 Id = id, ClientId = clientId, Type = type, PostalCode = postalCode, Street = street,
-                Number = number, Complement = complement, Neighborhood = neighborhood, City = city,
+                StreetNumber = streetNumber, // Atribuição corrigida
+                Complement = complement, Neighborhood = neighborhood, City = city,
                 StateCode = stateCode, CountryCode = countryCode, IsDefault = isDefault,
                 CreatedAt = createdAt, UpdatedAt = updatedAt, DeletedAt = deletedAt
             };
             return address;
         }
         
-        public void Update(AddressType type, string postalCode, string street, string number,
+        public void Update(AddressType type, string postalCode, string street, string streetNumber, // Parâmetro renomeado
             string? complement, string neighborhood, string city, string stateCode, bool isDefault,
             IValidationHandler handler)
         {
-            Type = type; PostalCode = postalCode; Street = street; Number = number;
+            Type = type; PostalCode = postalCode; Street = street; StreetNumber = streetNumber; // Atribuição corrigida
             Complement = complement; Neighborhood = neighborhood; City = city; StateCode = stateCode;
             IsDefault = isDefault; UpdatedAt = DateTime.UtcNow;
             

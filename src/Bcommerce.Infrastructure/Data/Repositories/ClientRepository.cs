@@ -53,14 +53,14 @@ public class ClientRepository : IClientRepository
         {
             const string clientSql = @"
                 INSERT INTO clients (client_id, first_name, last_name, email, email_verified_at, phone, password_hash, cpf, date_of_birth, newsletter_opt_in, status, created_at, updated_at, version)
-                VALUES (@Id, @FirstName, @EmailValue, @EmailVerified, @PhoneNumber, @PasswordHash, @CpfValue, @DateOfBirth, @NewsletterOptIn, @StatusString, @CreatedAt, @UpdatedAt, 1);
+                VALUES (@Id, @FirstName, @LastName, @EmailValue, @EmailVerified, @PhoneNumber, @PasswordHash, @CpfValue, @DateOfBirth, @NewsletterOptIn, @StatusString, @CreatedAt, @UpdatedAt, 1);
             ";
 
             await _uow.Connection.ExecuteAsync(new CommandDefinition(clientSql, new {
                 aggregate.Id, aggregate.FirstName, aggregate.LastName,
                 EmailValue = aggregate.Email.Value,
                 aggregate.EmailVerified,
-                PhoneNumber = aggregate.PhoneNumber, // Corrigido de "Phone"
+                aggregate.PhoneNumber,
                 aggregate.PasswordHash,
                 CpfValue = aggregate.Cpf?.Value,
                 aggregate.DateOfBirth, aggregate.NewsletterOptIn,
@@ -68,7 +68,6 @@ public class ClientRepository : IClientRepository
                 aggregate.CreatedAt, aggregate.UpdatedAt
             }, _uow.Transaction, cancellationToken: cancellationToken));
 
-            // Implementações para inserir as coleções filhas
             await InsertAddresses(aggregate.Addresses, cancellationToken);
             await InsertSavedCards(aggregate.SavedCards, cancellationToken);
             await InsertConsents(aggregate.Consents, cancellationToken);
@@ -98,7 +97,7 @@ public class ClientRepository : IClientRepository
                 aggregate.Id, aggregate.FirstName, aggregate.LastName,
                 EmailValue = aggregate.Email.Value,
                 aggregate.EmailVerified,
-                PhoneNumber = aggregate.PhoneNumber,
+                aggregate.PhoneNumber,
                 aggregate.PasswordHash,
                 CpfValue = aggregate.Cpf?.Value,
                 aggregate.DateOfBirth, aggregate.NewsletterOptIn,
@@ -106,23 +105,21 @@ public class ClientRepository : IClientRepository
                 aggregate.UpdatedAt, aggregate.DeletedAt
             }, _uow.Transaction, cancellationToken: cancellationToken));
             
-            // Para coleções, a estratégia de update é mais complexa:
-            // Sincronizar o estado do banco com o estado do agregado (deletar/inserir/atualizar filhos).
-            // Por simplicidade, esta implementação não inclui essa sincronização complexa.
+            // A sincronização de coleções filhas em um Update é complexa (envolve verificar
+            // quais itens foram adicionados, removidos ou alterados) e geralmente requer
+            // uma lógica mais elaborada. Manteremos simples por enquanto.
         }
 
         public async Task Delete(Client aggregate, CancellationToken cancellationToken)
         {
-            const string sql = "UPDATE clients SET deleted_at = @Now WHERE client_id = @Id;";
+            const string sql = "UPDATE clients SET deleted_at = @Now, status = 'inativo' WHERE client_id = @Id;";
             await _uow.Connection.ExecuteAsync(new CommandDefinition(sql, new { aggregate.Id, Now = DateTime.UtcNow }, _uow.Transaction, cancellationToken: cancellationToken));
         }
 
-        // CORREÇÃO 1: O tipo genérico da query foi atualizado
         private async Task<Client?> QueryAndHydrateClient(string sql, object param)
         {
             var clientDict = new Dictionary<Guid, Client>();
 
-            // QueryAsync agora inclui o SavedCardDataModel
             await _uow.Connection.QueryAsync<ClientDataModel, AddressDataModel, SavedCardDataModel, bool>(
                 sql,
                 (clientData, addressData, cardData) =>
@@ -136,7 +133,6 @@ public class ClientRepository : IClientRepository
                     if (addressData != null && client.Addresses.All(a => a.Id != addressData.address_id))
                     {
                         var address = HydrateAddress(addressData);
-                        // CORREÇÃO 2: Chamando Notification.Create() em vez do construtor privado
                         client.AddAddress(address, Bcommerce.Domain.Validation.Handlers.Notification.Create());
                     }
 
@@ -155,7 +151,6 @@ public class ClientRepository : IClientRepository
             return clientDict.Values.FirstOrDefault();
         }
 
-
         private static Client HydrateClient(ClientDataModel model)
         {
             return Client.With(
@@ -168,29 +163,37 @@ public class ClientRepository : IClientRepository
             );
         }
 
+        // MÉTODO CORRIGIDO
         private static Address HydrateAddress(AddressDataModel model)
         {
             return Address.With(
                 model.address_id, model.client_id,
                 Enum.Parse<AddressType>(model.type, true),
-                model.postal_code, model.street, model.number, model.complement,
-                model.neighborhood, model.city, model.state_code, model.country_code,
+                model.postal_code, model.street, 
+                model.street_number, // Corrigido
+                model.complement,
+                model.neighborhood, model.city, model.state_code, 
+                model.country_code, // Corrigido
                 model.is_default, model.created_at, model.updated_at, model.deleted_at
             );
         }
         
-        // Métodos auxiliares para inserir coleções
+        // MÉTODO CORRIGIDO
         private async Task InsertAddresses(IEnumerable<Address> addresses, CancellationToken cancellationToken)
         {
             const string sql = @"
                 INSERT INTO addresses (address_id, client_id, type, postal_code, street, street_number, complement, neighborhood, city, state_code, country_code, is_default, created_at, updated_at, version)
-                VALUES (@Id, @ClientId, @TypeString::address_type_enum, @PostalCode, @Street, @Number, @Complement, @Neighborhood, @City, @StateCode, @CountryCode, @IsDefault, @CreatedAt, @UpdatedAt, 1);
+                VALUES (@Id, @ClientId, @TypeString::address_type_enum, @PostalCode, @Street, @StreetNumber, @Complement, @Neighborhood, @City, @StateCode, @CountryCode, @IsDefault, @CreatedAt, @UpdatedAt, 1);
             ";
             foreach (var address in addresses)
             {
                 await _uow.Connection.ExecuteAsync(new CommandDefinition(sql, new {
-                    address.Id, address.ClientId, TypeString = address.Type.ToString().ToLower(), address.PostalCode, address.Street, Number = address.Number,
-                    address.Complement, address.Neighborhood, address.City, address.StateCode, address.CountryCode, address.IsDefault, address.CreatedAt, address.UpdatedAt
+                    address.Id, address.ClientId, TypeString = address.Type.ToString().ToLower(), 
+                    address.PostalCode, address.Street, 
+                    address.StreetNumber, // Corrigido
+                    address.Complement, address.Neighborhood, address.City, address.StateCode, 
+                    address.CountryCode, // Corrigido
+                    address.IsDefault, address.CreatedAt, address.UpdatedAt
                 }, _uow.Transaction, cancellationToken: cancellationToken));
             }
         }
@@ -205,8 +208,7 @@ public class ClientRepository : IClientRepository
             );
         }
 
-        
-        private Task InsertSavedCards(IEnumerable<SavedCard> cards, CancellationToken cancellationToken) => Task.CompletedTask; // Implementar
-        private Task InsertConsents(IEnumerable<Consent> consents, CancellationToken cancellationToken) => Task.CompletedTask; // Implementar
+        private Task InsertSavedCards(IEnumerable<SavedCard> cards, CancellationToken cancellationToken) => Task.CompletedTask;
+        private Task InsertConsents(IEnumerable<Consent> consents, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 

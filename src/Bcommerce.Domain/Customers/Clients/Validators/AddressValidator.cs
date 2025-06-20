@@ -23,8 +23,9 @@ public class AddressValidator : Validator
         if (string.IsNullOrWhiteSpace(_address.Street))
             ValidationHandler.Append(new Error("'Street' é obrigatório."));
 
-        if (string.IsNullOrWhiteSpace(_address.Number))
-            ValidationHandler.Append(new Error("'Number' (número) é obrigatório."));
+        // ATUALIZADO AQUI
+        if (string.IsNullOrWhiteSpace(_address.StreetNumber))
+            ValidationHandler.Append(new Error("'StreetNumber' (número) é obrigatório."));
 
         if (string.IsNullOrWhiteSpace(_address.Neighborhood))
             ValidationHandler.Append(new Error("'Neighborhood' (bairro) é obrigatório."));

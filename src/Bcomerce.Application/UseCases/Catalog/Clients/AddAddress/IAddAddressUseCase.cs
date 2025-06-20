@@ -1,7 +1,7 @@
 using Bcomerce.Application.Abstractions;
-using Bcommerce.Domain.Validations.Handlers;
+using Bcommerce.Domain.Validation.Handlers;
 
-namespace Bcomerce.Application.UseCases.Clients.AddAddress;
+namespace Bcomerce.Application.UseCases.Catalog.Clients.AddAddress;
 
 public interface IAddAddressUseCase : IUseCase<AddAddressInput, AddressOutput, Notification>
 {
