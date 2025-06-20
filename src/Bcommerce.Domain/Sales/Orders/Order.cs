@@ -1,10 +1,16 @@
 using Bcommerce.Domain.Catalog.Products.ValueObjects;
 using Bcommerce.Domain.Common;
+using Bcommerce.Domain.Customers.Clients;
+using Bcommerce.Domain.Customers.Clients.Entities;
 using Bcommerce.Domain.Exceptions;
+using Bcommerce.Domain.Marketing.Coupons;
 using Bcommerce.Domain.Sales.Carts.Entities;
 using Bcommerce.Domain.Sales.Orders.Entities;
 using Bcommerce.Domain.Sales.Orders.Enums;
 using Bcommerce.Domain.Sales.Orders.Validators;
+using Bcommerce.Domain.Sales.Payments;
+using Bcommerce.Domain.Sales.Payments.Entities;
+using Bcommerce.Domain.Sales.Payments.Enums;
 using Bcommerce.Domain.Validation;
 
 namespace Bcommerce.Domain.Sales.Orders;
@@ -18,11 +24,18 @@ public class Order : AggregateRoot
     public Money ItemsTotalAmount { get; private set; }
     public Money DiscountAmount { get; private set; }
     public Money ShippingAmount { get; private set; }
-    public Money GrandTotalAmount => ItemsTotalAmount - DiscountAmount + ShippingAmount;
+    public Money GrandTotalAmount => (ItemsTotalAmount - DiscountAmount) + ShippingAmount;
 
     private readonly List<OrderItem> _items = new();
     public IReadOnlyCollection<OrderItem> Items => _items.AsReadOnly();
-    
+        
+    // NOVAS PROPRIEDADES E COLEÇÕES
+    public OrderAddress? ShippingAddress { get; private set; }
+    public OrderAddress? BillingAddress { get; private set; }
+        
+    private readonly List<Payment> _payments = new();
+    public IReadOnlyCollection<Payment> Payments => _payments.AsReadOnly();
+
     private Order() { }
 
     public static Order NewOrder(
@@ -79,6 +92,33 @@ public class Order : AggregateRoot
         order._items.AddRange(items);
         return order;
     }
+    
+    public static Order NewOrderFromCart(Client client, IEnumerable<CartItem> cartItems, Money shippingAmount, Address shippingAddress, Address billingAddress)
+    {
+        var order = new Order
+        {
+            ClientId = client.Id,
+            ReferenceCode = GenerateOrderCode(),
+            Status = OrderStatus.Pending,
+            ShippingAmount = shippingAmount,
+            DiscountAmount = Money.Create(0)
+        };
+
+        foreach (var cartItem in cartItems)
+        {
+            // Em um cenário real, SKU e Nome viriam da consulta ao ProductVariant
+            var orderItem = OrderItem.NewOrderItem(order.Id, cartItem.ProductVariantId, "SKU-TEMP", "Nome-TEMP", cartItem.Quantity, cartItem.Price);
+            order._items.Add(orderItem);
+        }
+        order.RecalculateItemsTotal();
+            
+        // Cria os snapshots dos endereços
+        string recipientName = $"{client.FirstName} {client.LastName}";
+        order.ShippingAddress = OrderAddress.CreateFrom(order.Id, shippingAddress, recipientName, client.PhoneNumber);
+        order.BillingAddress = OrderAddress.CreateFrom(order.Id, billingAddress, recipientName, client.PhoneNumber);
+
+        return order;
+    }
 
     private void RecalculateItemsTotal()
     {
@@ -114,14 +154,59 @@ public class Order : AggregateRoot
         Status = OrderStatus.Canceled;
     }
 
-    private static string GenerateOrderCode()
-    {
-        return $"ORD-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}";
-    }
+        private static string GenerateOrderCode()
+        {
+            return $"ORD-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}";
+        }
+    
+    
+     public void ApplyCoupon(Coupon coupon)
+        {
+            DomainException.ThrowWhen(Status != OrderStatus.Pending, "Cupons só podem ser aplicados a pedidos pendentes.");
+            DomainException.ThrowWhen(DiscountAmount.Amount > 0, "Um cupom já foi aplicado a este pedido.");
+            
+            if (!coupon.IsValid(ItemsTotalAmount, ClientId))
+            {
+                throw new DomainException("O cupom fornecido é inválido ou não se aplica a esta compra.");
+            }
 
-    // Método Validate agora implementado corretamente
-    public override void Validate(IValidationHandler handler)
-    {
-        new OrderValidator(this, handler).Validate();
-    }
+            DiscountAmount = coupon.CalculateDiscount(ItemsTotalAmount);
+            CouponId = coupon.Id;
+            coupon.Use(); // Marca o cupom como usado
+            
+            // RaiseEvent(new OrderDiscountAppliedEvent(Id, coupon.Id, DiscountAmount));
+        }
+
+        public void AddPayment(PaymentMethod method)
+        {
+            DomainException.ThrowWhen(Status != OrderStatus.Pending, "Pagamentos só podem ser adicionados a pedidos pendentes.");
+            var amountToPay = GrandTotalAmount;
+            DomainException.ThrowWhen(amountToPay.Amount <= 0, "O valor do pedido deve ser positivo para adicionar um pagamento.");
+            
+            var payment = Payment.NewPayment(Id, amountToPay, method);
+            _payments.Add(payment);
+            
+            // RaiseEvent(new OrderPaymentAddedEvent(Id, payment.Id, payment.Amount));
+        }
+
+        public void ConfirmPayment(Guid paymentId, string transactionId)
+        {
+            DomainException.ThrowWhen(Status != OrderStatus.Pending, "Só é possível confirmar o pagamento de um pedido pendente.");
+            var payment = _payments.FirstOrDefault(p => p.Id == paymentId);
+            DomainException.ThrowWhen(payment is null, $"Pagamento com ID {paymentId} não encontrado neste pedido.");
+            
+            payment.MarkAsApproved(transactionId);
+            Status = OrderStatus.Processing;
+            
+            // RaiseEvent(new OrderConfirmedEvent(Id));
+        }
+
+        public override void Validate(IValidationHandler handler)
+        {
+            new OrderValidator(this, handler).Validate();
+        }
+
+
+
+  
 }

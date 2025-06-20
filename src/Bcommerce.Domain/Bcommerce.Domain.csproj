@@ -12,10 +12,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Customers\Clients\" />
-      <Folder Include="Enums\" />
-      <Folder Include="Marketing\" />
-      <Folder Include="Reviews\" />
       <Folder Include="System\" />
     </ItemGroup>
 
