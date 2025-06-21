@@ -7,7 +7,7 @@ using Bcomerce.Application.UseCases.Catalog.Clients.ListAddresses;
 using Bcomerce.Application.UseCases.Catalog.Clients.Login;
 using Bcomerce.Application.UseCases.Catalog.Clients.UpdateAddress;
 using Bcomerce.Application.UseCases.Catalog.Clients.VerifyEmail;
-using Bcommerce.Application.Clients.Events;
+using Bcommerce.Application.Events.Clients;
 using Bcommerce.Domain.Common;
 using Bcommerce.Domain.Customers.Clients.Events;
 

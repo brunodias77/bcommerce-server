@@ -8,7 +8,7 @@ using Bcommerce.Domain.Services;
 using Bcommerce.Infrastructure.Data.Repositories;
 
 
-namespace Bcommerce.Application.Clients.Events;
+namespace Bcommerce.Application.Events.Clients;
 
 public class ClientCreatedEventHandler : IDomainEventHandler<ClientCreatedEvent>
 {
