@@ -1,36 +1,35 @@
-using Bcommerce.Domain.Validations;
+using Bcommerce.Domain.Validation;
 
 namespace Bcommerce.Domain.Exceptions;
 
 public class DomainException : Exception
 {
-    /// <summary>
-    /// Lista de erros associados à exceção.
-    /// </summary>
     public IReadOnlyList<Error> Errors { get; }
 
-    /// <summary>
-    /// Construtor protegido. Use os métodos estáticos With() para instanciar.
-    /// </summary>
-    protected DomainException(string message, List<Error> errors)
-        : base(message)
+    public DomainException(string message) : base(message)
     {
-        Errors = errors ?? new List<Error>();
+        Errors = new List<Error> { new Error(message) };
     }
 
-    /// <summary>
-    /// Cria uma exceção com um único erro de validação.
-    /// </summary>
-    public static DomainException With(Error error)
+    public DomainException(IReadOnlyList<Error> errors) : base(BuildErrorMessage(errors))
     {
-        return new DomainException(error.Message, new List<Error> { error });
+        Errors = errors;
     }
 
-    /// <summary>
-    /// Cria uma exceção com múltiplos erros de validação.
-    /// </summary>
-    public static DomainException With(IEnumerable<Error> errors)
+    public static void ThrowWhen(bool condition, string message)
     {
-        return new DomainException(string.Empty, new List<Error>(errors));
+        if (condition)
+        {
+            throw new DomainException(message);
+        }
+    }
+    
+    private static string BuildErrorMessage(IReadOnlyList<Error> errors)
+    {
+        if (errors is null || errors.Count == 0)
+        {
+            return "Um erro de domínio ocorreu.";
+        }
+        return "Erro de domínio: " + string.Join(", ", errors.Select(e => e.Message));
     }
 }

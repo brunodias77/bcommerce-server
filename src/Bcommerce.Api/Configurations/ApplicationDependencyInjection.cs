@@ -1,19 +1,16 @@
-using Bcomerce.Application.UseCases.Catalog.CreateCategory;
-using Bcomerce.Application.UseCases.Catalog.DeleteCategories;
-using Bcomerce.Application.UseCases.Catalog.GetProductDetails;
-using Bcomerce.Application.UseCases.Catalog.ListCategories;
-using Bcomerce.Application.UseCases.Catalog.UpdateCategory;
-using Bcomerce.Application.UseCases.Clients.AddAddress;
-using Bcomerce.Application.UseCases.Clients.Create;
-using Bcomerce.Application.UseCases.Clients.DeleteAddress;
-using Bcomerce.Application.UseCases.Clients.GetMyProfile;
-using Bcomerce.Application.UseCases.Clients.ListAddresses;
-using Bcomerce.Application.UseCases.Clients.Login;
-using Bcomerce.Application.UseCases.Clients.UpdateAddress;
-using Bcomerce.Application.UseCases.Clients.VerifyEmail;
+
+using Bcomerce.Application.UseCases.Catalog.Clients.AddAddress;
+using Bcomerce.Application.UseCases.Catalog.Clients.Create;
+using Bcomerce.Application.UseCases.Catalog.Clients.DeleteAddress;
+using Bcomerce.Application.UseCases.Catalog.Clients.GetMyProfile;
+using Bcomerce.Application.UseCases.Catalog.Clients.ListAddresses;
+using Bcomerce.Application.UseCases.Catalog.Clients.Login;
+using Bcomerce.Application.UseCases.Catalog.Clients.UpdateAddress;
+using Bcomerce.Application.UseCases.Catalog.Clients.VerifyEmail;
 using Bcommerce.Application.Clients.Events;
-using Bcommerce.Domain.Abstractions;
-using Bcommerce.Domain.Clients.Events;
+using Bcommerce.Domain.Common;
+using Bcommerce.Domain.Customers.Clients.Events;
+
 
 namespace Bcommerce.Api.Configurations;
 
@@ -36,19 +33,11 @@ public static class ApplicationDependencyInjection
         services.AddScoped<IListMyAddressesUseCase, ListMyAddressesUseCase>();
         services.AddScoped<IUpdateAddressUseCase, UpdateAddressUseCase>();
         services.AddScoped<IDeleteAddressUseCase, DeleteAddressUseCase>();
-        services.AddScoped<ICreateCategoryUseCase, CreateCategoryUseCase>();
-        services.AddScoped<IListCategoriesUseCase, ListCategoriesUseCase>();
-        services.AddScoped<IUpdateCategoryUseCase, UpdateCategoryUseCase>();
-        services.AddScoped<IDeleteCategoryUseCase, DeleteCategoryUseCase>();
-        services.AddScoped<IGetProductDetailsUseCase, GetProductDetailsUseCase>();
     }
 
     private static void AddEvents(IServiceCollection services, IConfiguration configuration)
     {
         services.AddScoped<IDomainEventHandler<ClientCreatedEvent>, ClientCreatedEventHandler>();
-        
-        // Precisa de uma implementação para IDomainEventPublisher
-        // services.AddScoped<IDomainEventPublisher, MediatRDomainEventPublisher>();
     }
 
 }

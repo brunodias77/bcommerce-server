@@ -1,8 +1,9 @@
-using Bcommerce.Domain.Abstractions;
-using Bcommerce.Domain.Brands.Repositories;
-using Bcommerce.Domain.Categories.Repositories;
-using Bcommerce.Domain.Clients.Repositories;
-using Bcommerce.Domain.Products.Repositories;
+
+using Bcommerce.Domain.Catalog.Brands.Repositories;
+using Bcommerce.Domain.Catalog.Categories.Repositories;
+using Bcommerce.Domain.Catalog.Products.Repositories;
+using Bcommerce.Domain.Common;
+using Bcommerce.Domain.Customers.Clients.Repositories;
 using Bcommerce.Domain.Security;
 using Bcommerce.Domain.Services;
 using Bcommerce.Infrastructure.Data.Repositories;

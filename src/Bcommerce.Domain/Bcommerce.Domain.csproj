@@ -8,6 +8,19 @@
 
     <ItemGroup>
       <Compile Remove="Abstractions\Identifier.cs" />
+      <Compile Remove="Events\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="System\" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <EmbeddedResource Remove="Events\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="Events\**" />
     </ItemGroup>
 
 </Project>

@@ -24,10 +24,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Infra\" />
-    </ItemGroup>
-
-    <ItemGroup>
       <ProjectReference Include="..\..\..\src\Bcomerce.Application\Bcomerce.Application.csproj" />
       <ProjectReference Include="..\..\..\src\Bcommerce.Domain\Bcommerce.Domain.csproj" />
       <ProjectReference Include="..\..\..\src\Bcommerce.Infrastructure\Bcommerce.Infrastructure.csproj" />

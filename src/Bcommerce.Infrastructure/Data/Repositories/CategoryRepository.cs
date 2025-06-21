@@ -1,5 +1,5 @@
-using Bcommerce.Domain.Categories;
-using Bcommerce.Domain.Categories.Repositories;
+using Bcommerce.Domain.Catalog.Categories;
+using Bcommerce.Domain.Catalog.Categories.Repositories;
 using Bcommerce.Infrastructure.Data.Models;
 using Dapper;
 
@@ -17,16 +17,15 @@ public class CategoryRepository : ICategoryRepository
     public async Task Insert(Category aggregate, CancellationToken cancellationToken)
     {
         const string sql = @"
-            INSERT INTO category (category_id, name, slug, description, parent_category_id, is_active, sort_order, created_at, updated_at)
-            VALUES (@Id, @Name, @Slug, @Description, @ParentCategoryId, @IsActive, @SortOrder, @CreatedAt, @UpdatedAt);
+            INSERT INTO categories (category_id, name, slug, description, parent_category_id, is_active, sort_order, created_at, updated_at, version)
+            VALUES (@Id, @Name, @Slug, @Description, @ParentCategoryId, @IsActive, @SortOrder, @CreatedAt, @UpdatedAt, 1);
         ";
         await _uow.Connection.ExecuteAsync(new CommandDefinition(sql, aggregate, _uow.Transaction, cancellationToken: cancellationToken));
-
     }
 
-    public async Task<Category> Get(Guid id, CancellationToken cancellationToken)
+    public async Task<Category?> Get(Guid id, CancellationToken cancellationToken)
     {
-        const string sql = "SELECT * FROM category WHERE category_id = @Id AND deleted_at IS NULL;";
+        const string sql = "SELECT * FROM categories WHERE category_id = @Id AND deleted_at IS NULL;";
         var model = await _uow.Connection.QuerySingleOrDefaultAsync<CategoryDataModel>(
             sql,
             new { Id = id },
@@ -37,31 +36,56 @@ public class CategoryRepository : ICategoryRepository
 
     public async Task Delete(Category aggregate, CancellationToken cancellationToken)
     {
-        // Implementando como Soft Delete
-        const string sql = "UPDATE category SET deleted_at = @Now WHERE category_id = @Id;";
+        const string sql = "UPDATE categories SET deleted_at = @Now WHERE category_id = @Id;";
         await _uow.Connection.ExecuteAsync(new CommandDefinition(sql, new { aggregate.Id, Now = DateTime.UtcNow }, _uow.Transaction, cancellationToken: cancellationToken));
-
     }
 
     public async Task Update(Category aggregate, CancellationToken cancellationToken)
     {
         const string sql = @"
-            UPDATE category SET
+            UPDATE categories SET
                 name = @Name,
                 slug = @Slug,
                 description = @Description,
                 parent_category_id = @ParentCategoryId,
                 is_active = @IsActive,
                 sort_order = @SortOrder,
-                updated_at = @UpdatedAt
+                updated_at = @UpdatedAt,
+                version = version + 1
             WHERE category_id = @Id AND deleted_at IS NULL;
         ";
         await _uow.Connection.ExecuteAsync(new CommandDefinition(sql, aggregate, _uow.Transaction, cancellationToken: cancellationToken));
     }
 
+    // MÉTODO ADICIONADO
+    public async Task<Category?> GetBySlugAsync(string slug, CancellationToken cancellationToken)
+    {
+        const string sql = "SELECT * FROM categories WHERE slug = @Slug AND deleted_at IS NULL;";
+        var model = await _uow.Connection.QuerySingleOrDefaultAsync<CategoryDataModel>(
+            sql,
+            new { Slug = slug },
+            transaction: _uow.HasActiveTransaction ? _uow.Transaction : null
+        );
+        return model is null ? null : Hydrate(model);
+    }
+
+    // MÉTODO ADICIONADO
+    public async Task<bool> ExistsWithNameAsync(string name, CancellationToken cancellationToken)
+    {
+        const string sql = "SELECT 1 FROM categories WHERE name = @Name AND deleted_at IS NULL;";
+        var result = await _uow.Connection.ExecuteScalarAsync<int?>(
+            sql,
+            new { Name = name },
+            transaction: _uow.HasActiveTransaction ? _uow.Transaction : null
+        );
+        return result.HasValue;
+    }
+    
+    // Este método não faz parte da interface IRepository, mas é útil para casos de uso de listagem.
+    // Pode ser movido para a interface se for um requisito comum.
     public async Task<IEnumerable<Category>> GetAllAsync(CancellationToken cancellationToken)
     {
-        const string sql = "SELECT * FROM category WHERE deleted_at IS NULL ORDER BY sort_order, name;";
+        const string sql = "SELECT * FROM categories WHERE deleted_at IS NULL ORDER BY sort_order, name;";
         var models = await _uow.Connection.QueryAsync<CategoryDataModel>(sql,
             transaction: _uow.HasActiveTransaction ? _uow.Transaction : null
         );
@@ -70,14 +94,15 @@ public class CategoryRepository : ICategoryRepository
 
     private static Category Hydrate(CategoryDataModel model)
     {
+        // A hidratação está correta e já inclui o sort_order
         return Category.With(
             model.category_id,
             model.name,
             model.slug,
             model.description,
-            model.parent_category_id,
             model.is_active,
-            model.sort_order,
+            model.parent_category_id,
+            model.sort_order, // <- Correto
             model.created_at,
             model.updated_at
         );

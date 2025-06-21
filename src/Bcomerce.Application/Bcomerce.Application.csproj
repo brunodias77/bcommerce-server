@@ -11,4 +11,8 @@
       <ProjectReference Include="..\Bcommerce.Infrastructure\Bcommerce.Infrastructure.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="UseCases\Catalog\" />
+    </ItemGroup>
+
 </Project>
