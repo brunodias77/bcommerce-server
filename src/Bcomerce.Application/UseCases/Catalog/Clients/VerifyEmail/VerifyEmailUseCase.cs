@@ -1,13 +1,13 @@
 using System.Security.Cryptography;
 using System.Text;
 using Bcomerce.Application.Abstractions;
-using Bcommerce.Domain.Clients.Repositories;
-using Bcommerce.Domain.Validations;
-using Bcommerce.Domain.Validations.Handlers;
+using Bcommerce.Domain.Customers.Clients.Repositories;
+using Bcommerce.Domain.Validation;
+using Bcommerce.Domain.Validation.Handlers;
 using Bcommerce.Infrastructure.Data.Repositories;
 using Microsoft.Extensions.Logging;
 
-namespace Bcomerce.Application.UseCases.Clients.VerifyEmail;
+namespace Bcomerce.Application.UseCases.Catalog.Clients.VerifyEmail;
 
 public class VerifyEmailUseCase : IVerifyEmailUseCase
 {

@@ -1,10 +1,10 @@
 using Bcomerce.Application.Abstractions;
-using Bcomerce.Application.UseCases.Clients.AddAddress;
-using Bcommerce.Domain.Clients.Repositories;
+using Bcomerce.Application.UseCases.Catalog.Clients.AddAddress;
+using Bcommerce.Domain.Customers.Clients.Repositories;
 using Bcommerce.Domain.Services;
-using Bcommerce.Domain.Validations.Handlers;
+using Bcommerce.Domain.Validation.Handlers;
 
-namespace Bcomerce.Application.UseCases.Clients.ListAddresses;
+namespace Bcomerce.Application.UseCases.Catalog.Clients.ListAddresses;
 
 public class ListMyAddressesUseCase : IListMyAddressesUseCase
 {

@@ -1,11 +1,12 @@
 using Bcomerce.Application.Abstractions;
-using Bcomerce.Application.UseCases.Clients.Create;
-using Bcommerce.Domain.Clients.Repositories;
+using Bcomerce.Application.UseCases.Catalog.Clients.Create;
+using Bcommerce.Domain.Customers.Clients.Repositories;
 using Bcommerce.Domain.Services;
-using Bcommerce.Domain.Validations;
-using Bcommerce.Domain.Validations.Handlers;
+using Bcommerce.Domain.Validation;
+using Bcommerce.Domain.Validation.Handlers;
 
-namespace Bcomerce.Application.UseCases.Clients.GetMyProfile;
+
+namespace Bcomerce.Application.UseCases.Catalog.Clients.GetMyProfile;
 
 public class GetMyProfileUseCase : IGetMyProfileUseCase
 {
@@ -24,7 +25,9 @@ public class GetMyProfileUseCase : IGetMyProfileUseCase
 
         if (client is null)
         {
-            var notification = Notification.Create(new Error("Usuário não encontrado."));
+            // CORREÇÃO: Utilizando Create() e Append() para criar a notificação de erro.
+            var notification = Notification.Create()
+                .Append(new Error("Usuário não encontrado."));
             return Result<CreateClientOutput, Notification>.Fail(notification);
         }
         

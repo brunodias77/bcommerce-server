@@ -1,10 +1,9 @@
 using Bcomerce.Application.Abstractions;
-using Bcomerce.Application.UseCases.Clients.Create;
-using Bcommerce.Domain.Clients.Repositories;
-using Bcommerce.Domain.Services;
-using Bcommerce.Domain.Validations.Handlers;
+using Bcomerce.Application.UseCases.Catalog.Clients.Create;
+using Bcommerce.Domain.Validation.Handlers;
 
-namespace Bcomerce.Application.UseCases.Clients.GetMyProfile;
+
+namespace Bcomerce.Application.UseCases.Catalog.Clients.GetMyProfile;
 
 public interface IGetMyProfileUseCase : IUseCase<object, CreateClientOutput, Notification>
 {

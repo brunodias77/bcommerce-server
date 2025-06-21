@@ -1,6 +1,8 @@
 using Bcomerce.Application.Abstractions;
 using Bcommerce.Domain.Customers.Clients.Entities;
+using Bcommerce.Domain.Customers.Clients.Repositories;
 using Bcommerce.Domain.Services;
+using Bcommerce.Domain.Validation;
 using Bcommerce.Domain.Validation.Handlers;
 using Bcommerce.Infrastructure.Data.Repositories;
 
@@ -38,7 +40,7 @@ public class AddAddressUseCase : IAddAddressUseCase
             notification
         );
         
-        if (notification.GetErrors() > 0)
+        if (notification.HasError())
         {
             return Result<AddressOutput, Notification>.Fail(notification);
         }
@@ -59,7 +61,7 @@ public class AddAddressUseCase : IAddAddressUseCase
         catch (Exception e)
         {
             await _uow.Rollback();
-            notification.Append(new Bcommerce.Domain.Validations.Error("Erro ao salvar o endereço."));
+            notification.Append(new Error("Erro ao salvar o endereço."));
             return Result<AddressOutput, Notification>.Fail(notification);
         }
 

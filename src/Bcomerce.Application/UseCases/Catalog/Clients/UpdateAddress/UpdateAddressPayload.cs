@@ -1,6 +1,6 @@
 using Bcommerce.Domain.Customers.Clients.Enums;
 
-namespace Bcomerce.Application.UseCases.Clients.UpdateAddress;
+namespace Bcomerce.Application.UseCases.Catalog.Clients.UpdateAddress;
 
 public record UpdateAddressPayload(
     AddressType Type,

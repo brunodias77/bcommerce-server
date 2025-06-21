@@ -3,10 +3,8 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Bcommerce.Domain.Customers.Clients;
-using Bcommerce.Domain.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
-
 
 namespace Bcommerce.Infrastructure.Security;
 
@@ -19,36 +17,41 @@ public class JwtTokenService : ITokenService
         _configuration = configuration;
     }
 
-    public string GenerateToken(Client client)
+    /// <summary>
+    /// Gera um token JWT e sua data de expiração.
+    /// </summary>
+    /// <param name="client">A entidade do cliente para a qual o token será gerado.</param>
+    /// <returns>Uma tupla com o token e sua data de expiração.</returns>
+    public (string AccessToken, DateTime ExpiresAt) GenerateToken(Client client)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
         
-        // A chave secreta é lida do appsettings.json
         var signinKey = _configuration["Settings:JwtSettings:SigninKey"];
         var key = Encoding.ASCII.GetBytes(signinKey);
 
         var claims = new List<Claim>
         {
-            new(JwtRegisteredClaimNames.Sub, client.Id.ToString()), // Subject (o ID do usuário)
-            
-            // CORREÇÃO APLICADA AQUI:
-            // Acessamos a propriedade .Value do Value Object Email.
+            new(JwtRegisteredClaimNames.Sub, client.Id.ToString()),
             new(JwtRegisteredClaimNames.Email, client.Email.Value), 
-            
             new(JwtRegisteredClaimNames.Name, client.FirstName),
-            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()) // JWT ID (para evitar replay attacks)
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
+
+        var expires = DateTime.UtcNow.AddMinutes(Convert.ToDouble(_configuration["Settings:JwtSettings:ExpirationTimeMinutes"]));
 
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.UtcNow.AddMinutes(Convert.ToDouble(_configuration["Settings:JwtSettings:ExpirationTimeMinutes"])),
+            Expires = expires,
             Issuer = _configuration["Settings:JwtSettings:Issuer"],
             Audience = _configuration["Settings:JwtSettings:Audience"],
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
         };
 
         var securityToken = tokenHandler.CreateToken(tokenDescriptor);
-        return tokenHandler.WriteToken(securityToken);
+        var accessToken = tokenHandler.WriteToken(securityToken);
+
+        // CORREÇÃO: Retorna o token e a data de expiração calculada a partir da configuração.
+        return (AccessToken: accessToken, ExpiresAt: expires);
     }
 }

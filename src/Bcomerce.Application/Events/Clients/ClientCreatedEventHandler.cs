@@ -1,10 +1,12 @@
 using System.Security.Cryptography;
 using System.Text;
+using Bcommerce.Domain.Common;
+using Bcommerce.Domain.Customers.Clients.Entities;
+using Bcommerce.Domain.Customers.Clients.Events;
+using Bcommerce.Domain.Customers.Clients.Repositories;
 using Bcommerce.Domain.Services;
-using Bcommerce.Domain.Abstractions;
-using Bcommerce.Domain.Clients.Events;
-using Bcommerce.Domain.Clients.Repositories;
 using Bcommerce.Infrastructure.Data.Repositories;
+
 
 namespace Bcommerce.Application.Clients.Events;
 
@@ -23,22 +25,20 @@ public class ClientCreatedEventHandler : IDomainEventHandler<ClientCreatedEvent>
 
     public async Task HandleAsync(ClientCreatedEvent domainEvent, CancellationToken cancellationToken)
     {
-        // 1. Gerar um token seguro
+        // 1. Gera um token seguro e URL-friendly para o usuário
         var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
-            .TrimEnd('=').Replace('+', '-').Replace('/', '_'); // URL-safe token
+            .TrimEnd('=').Replace('+', '-').Replace('/', '_');
 
-        // 2. Gerar o Hash do token para armazenar no banco
+        // 2. Gera o Hash do token que será armazenado no banco
         var tokenHash = Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
 
-        // 3. Criar a entidade do token
-        var verificationToken = new EmailVerificationToken
-        {
-            TokenId = Guid.NewGuid(),
-            ClientId = domainEvent.ClientId,
-            TokenHash = tokenHash,
-            ExpiresAt = DateTime.UtcNow.AddHours(24), // Token expira em 24 horas
-            CreatedAt = DateTime.UtcNow
-        };
+        // 3. CORREÇÃO: Utiliza o método de fábrica da entidade para criar o token.
+        //    Isso centraliza as regras de negócio e a criação do Id na própria entidade.
+        var verificationToken = EmailVerificationToken.NewToken(
+            domainEvent.ClientId,
+            tokenHash,
+            TimeSpan.FromHours(24) // Define a validade do token
+        );
         
         await _uow.Begin();
         try
@@ -49,13 +49,13 @@ public class ClientCreatedEventHandler : IDomainEventHandler<ClientCreatedEvent>
         catch
         {
             await _uow.Rollback();
-            throw; // Re-lança a exceção para ser logada mais acima
+            throw; // Re-lança a exceção para ser registrada pelos logs da aplicação
         }
 
-        // 4. Montar o link de verificação
-        var verificationLink = $"http://localhost:4200/auth/verify-email?token={token}";
+        // 4. Monta o link de verificação que será enviado no e-mail
+        var verificationLink = $"http://localhost:3000/auth/verify-email?token={token}";
 
-        // 5. Enviar o email
+        // 5. Dispara o serviço de envio de e-mail
         await _emailService.SendVerificationEmailAsync(
             domainEvent.Email,
             domainEvent.FirstName,

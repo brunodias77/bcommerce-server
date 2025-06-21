@@ -1,14 +1,19 @@
 using Bcomerce.Application.Abstractions;
-using Bcommerce.Domain.Clients.Repositories;
+using Bcomerce.Application.UseCases.Catalog.Clients.Login;
+using Bcommerce.Domain.Customers.Clients.Repositories;
 using Bcommerce.Domain.Security;
 using Bcommerce.Domain.Services;
-using Bcommerce.Domain.Validations;
-using Bcommerce.Domain.Validations.Handlers;
+using Bcommerce.Domain.Validation;
+using Bcommerce.Domain.Validation.Handlers;
 
-namespace Bcomerce.Application.UseCases.Clients.Login;
+namespace Bcomerce.Application.UseCases.Catalog.Clients.Login;
 
 public class LoginClientUseCase : ILoginClientUseCase
 {
+    private readonly IClientRepository _clientRepository;
+    private readonly IPasswordEncripter _passwordEncrypter;
+    private readonly ITokenService _tokenService;
+
     public LoginClientUseCase(IClientRepository clientRepository, IPasswordEncripter passwordEncrypter, ITokenService tokenService)
     {
         _clientRepository = clientRepository;
@@ -16,15 +21,11 @@ public class LoginClientUseCase : ILoginClientUseCase
         _tokenService = tokenService;
     }
 
-    private readonly IClientRepository _clientRepository;
-    private readonly IPasswordEncripter _passwordEncrypter;
-    private readonly ITokenService _tokenService;
     public async Task<Result<LoginClientOutput, Notification>> Execute(LoginClientInput input)
     {
         var notification = Notification.Create();
         
         var client = await _clientRepository.GetByEmail(input.Email, CancellationToken.None);
-        // Mensagem de erro genérica para não informar se o e-mail existe ou se a senha está errada
         var invalidCredentialsError = new Error("E-mail ou senha inválidos.");
         
         if (client is null)
@@ -33,7 +34,6 @@ public class LoginClientUseCase : ILoginClientUseCase
             return Result<LoginClientOutput, Notification>.Fail(notification);
         }
         
-        // REGRA DE NEGÓCIO: Não permitir login se o e-mail não foi verificado
         if (!client.EmailVerified.HasValue)
         {
             notification.Append(new Error("Seu e-mail ainda não foi verificado. Por favor, verifique sua caixa de entrada."));
@@ -48,9 +48,9 @@ public class LoginClientUseCase : ILoginClientUseCase
             return Result<LoginClientOutput, Notification>.Fail(notification);
         }
         
-        var token = _tokenService.GenerateToken(client);
-        var expiresAt = DateTime.UtcNow.AddMinutes(60); 
-        var output = new LoginClientOutput(token, expiresAt);
+        // CORREÇÃO: A lógica de expiração foi removida daqui e agora vem diretamente do ITokenService.
+        var (accessToken, expiresAt) = _tokenService.GenerateToken(client);
+        var output = new LoginClientOutput(accessToken, expiresAt);
         
         return Result<LoginClientOutput, Notification>.Ok(output);
     }

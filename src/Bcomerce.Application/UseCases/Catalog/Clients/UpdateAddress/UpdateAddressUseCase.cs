@@ -1,12 +1,12 @@
 using Bcomerce.Application.Abstractions;
-using Bcomerce.Application.UseCases.Clients.AddAddress;
-using Bcommerce.Domain.Clients.Repositories;
+using Bcomerce.Application.UseCases.Catalog.Clients.AddAddress;
+using Bcommerce.Domain.Customers.Clients.Repositories;
 using Bcommerce.Domain.Services;
-using Bcommerce.Domain.Validations;
-using Bcommerce.Domain.Validations.Handlers;
+using Bcommerce.Domain.Validation;
+using Bcommerce.Domain.Validation.Handlers;
 using Bcommerce.Infrastructure.Data.Repositories;
 
-namespace Bcomerce.Application.UseCases.Clients.UpdateAddress;
+namespace Bcomerce.Application.UseCases.Catalog.Clients.UpdateAddress;
 
 public class UpdateAddressUseCase : IUpdateAddressUseCase
 {
@@ -38,7 +38,7 @@ public class UpdateAddressUseCase : IUpdateAddressUseCase
             }
 
             address.Update(
-                input.Type, input.PostalCode, input.Street, input.Number, input.Complement,
+                input.Type, input.PostalCode, input.Street, input.StreetNumber, input.Complement,
                 input.Neighborhood, input.City, input.StateCode, input.IsDefault, notification
             );
 

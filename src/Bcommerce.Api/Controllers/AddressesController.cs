@@ -1,8 +1,8 @@
-using Bcomerce.Application.UseCases.Clients.AddAddress;
-using Bcomerce.Application.UseCases.Clients.DeleteAddress;
-using Bcomerce.Application.UseCases.Clients.ListAddresses;
-using Bcomerce.Application.UseCases.Clients.UpdateAddress;
-using Bcommerce.Domain.Validations;
+using Bcomerce.Application.UseCases.Catalog.Clients.AddAddress;
+using Bcomerce.Application.UseCases.Catalog.Clients.DeleteAddress;
+using Bcomerce.Application.UseCases.Catalog.Clients.ListAddresses;
+using Bcomerce.Application.UseCases.Catalog.Clients.UpdateAddress;
+using Bcommerce.Domain.Validation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -30,7 +30,7 @@ public class AddressesController : ControllerBase
         }
 
         // Este bloco seria para erros de validação, improvável neste caso de uso.
-        return BadRequest(result.Error?.GetErrors());
+        return BadRequest(new { errors = result.Error?.GetErrors() });
     }
     
     [HttpPost]
@@ -66,7 +66,7 @@ public class AddressesController : ControllerBase
             payload.Type,
             payload.PostalCode,
             payload.Street,
-            payload.Number,
+            payload.StreetNumber,
             payload.Complement,
             payload.Neighborhood,
             payload.City,
@@ -84,7 +84,7 @@ public class AddressesController : ControllerBase
         // Se o endereço não for encontrado ou não pertencer ao usuário,
         // o ideal seria retornar 404 Not Found em vez de 400 Bad Request.
         // Isso pode ser feito analisando o tipo de erro no 'result.Error'.
-        return BadRequest(result.Error?.GetErrors());
+        return BadRequest(new { errors = result.Error?.GetErrors() });
     }
     
     [HttpDelete("{addressId:guid}")]
@@ -105,6 +105,6 @@ public class AddressesController : ControllerBase
             return NoContent(); // 204 No Content é a resposta padrão para um DELETE bem-sucedido
         }
 
-        return BadRequest(result.Error?.GetErrors());
+        return BadRequest(new { errors = result.Error?.GetErrors() });
     }
 }

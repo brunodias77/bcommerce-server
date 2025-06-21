@@ -1,11 +1,11 @@
 using Bcomerce.Application.Abstractions;
-using Bcommerce.Domain.Clients.Repositories;
+using Bcommerce.Domain.Customers.Clients.Repositories;
 using Bcommerce.Domain.Services;
-using Bcommerce.Domain.Validations;
-using Bcommerce.Domain.Validations.Handlers;
+using Bcommerce.Domain.Validation;
+using Bcommerce.Domain.Validation.Handlers;
 using Bcommerce.Infrastructure.Data.Repositories;
 
-namespace Bcomerce.Application.UseCases.Clients.DeleteAddress;
+namespace  Bcomerce.Application.UseCases.Catalog.Clients.DeleteAddress;
 
 public class DeleteAddressUseCase : IDeleteAddressUseCase
 {

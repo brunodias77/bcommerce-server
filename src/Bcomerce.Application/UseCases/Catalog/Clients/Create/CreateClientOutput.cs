@@ -1,6 +1,7 @@
-using Bcommerce.Domain.Clients;
 
-namespace Bcomerce.Application.UseCases.Clients.Create;
+using Bcommerce.Domain.Customers.Clients;
+
+namespace Bcomerce.Application.UseCases.Catalog.Clients.Create;
 
 public record CreateClientOutput(
     Guid Id, 
@@ -27,7 +28,7 @@ public record CreateClientOutput(
             client.Id,
             client.FirstName,
             client.LastName,
-            client.Email,
+            client.Email.Value, // CORREÇÃO: Acessa a propriedade .Value do Value Object Email
             client.CreatedAt
         );
     }

@@ -1,6 +1,6 @@
 using Bcomerce.Application.Abstractions;
-using Bcommerce.Domain.Validations.Handlers;
+using Bcommerce.Domain.Validation.Handlers;
 
-namespace Bcomerce.Application.UseCases.Clients.Create;
+namespace Bcomerce.Application.UseCases.Catalog.Clients.Create;
 
 public interface ICreateClientUseCase : IUseCase<CreateClientInput, CreateClientOutput, Notification>;

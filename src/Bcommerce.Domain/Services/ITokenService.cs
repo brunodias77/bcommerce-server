@@ -2,12 +2,15 @@ using Bcommerce.Domain.Customers.Clients;
 
 namespace Bcommerce.Domain.Services;
 
+/// <summary>
+/// Define o contrato para um serviço que gera tokens de autenticação.
+/// </summary>
 public interface ITokenService
 {
     /// <summary>
-    /// Gera um token baseado nos dados de um cliente.
+    /// Gera um token e sua respectiva data de expiração com base nos dados de um cliente.
     /// </summary>
     /// <param name="client">A entidade do cliente.</param>
-    /// <returns>Uma string representando o token JWT.</returns>
-    string GenerateToken(Client client);
+    /// <returns>Uma tupla contendo a string do token de acesso (AccessToken) e a data de expiração (ExpiresAt).</returns>
+    (string AccessToken, DateTime ExpiresAt) GenerateToken(Client client);
 }

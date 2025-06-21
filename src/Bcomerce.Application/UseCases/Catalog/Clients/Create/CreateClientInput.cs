@@ -1,4 +1,4 @@
-namespace Bcomerce.Application.UseCases.Clients.Create;
+namespace Bcomerce.Application.UseCases.Catalog.Clients.Create;
 
 public record CreateClientInput(        
     string FirstName,
