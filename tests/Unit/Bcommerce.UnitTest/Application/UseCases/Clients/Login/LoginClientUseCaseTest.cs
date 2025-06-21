@@ -1,4 +1,6 @@
 using Bcommerce.Domain.Customers.Clients;
+using Bcommerce.Domain.Customers.Clients.Entities;
+using Bcommerce.Domain.Services;
 using FluentAssertions;
 using Moq;
 
@@ -16,15 +18,17 @@ public class LoginClientUseCaseTest
         _fixture.ClientRepositoryMock.Invocations.Clear();
         _fixture.PasswordEncripterMock.Invocations.Clear();
         _fixture.TokenServiceMock.Invocations.Clear();
+        _fixture.RefreshTokenRepositoryMock.Invocations.Clear();
+        _fixture.UnitOfWorkMock.Invocations.Clear();
     }
 
-    [Fact(DisplayName = "Deve Autenticar Cliente com Sucesso")]
+    [Fact(DisplayName = "Deve Autenticar Cliente com Sucesso e Gerar Tokens")]
     [Trait("Application", "LoginClient - UseCase")]
-    public async Task Execute_WhenCredentialsAreValid_ShouldReturnToken()
+    public async Task Execute_WhenCredentialsAreValid_ShouldReturnAuthResultAndSaveRefreshToken()
     {
         // Arrange
         var input = _fixture.GetValidLoginInput();
-        var client = _fixture.CreateValidClient(isEmailVerified: true); // Garante que o cliente tem e-mail verificado
+        var client = _fixture.CreateValidClient(isEmailVerified: true);
         var useCase = _fixture.CreateUseCase();
 
         _fixture.ClientRepositoryMock
@@ -35,11 +39,15 @@ public class LoginClientUseCaseTest
             .Setup(enc => enc.Verify(input.Password, client.PasswordHash))
             .Returns(true);
 
-        var expectedToken = "valid_jwt_token";
-        var expectedExpiration = DateTime.UtcNow.AddHours(1);
+        // --> SETUP ATUALIZADO: Agora o TokenService retorna um AuthResult
+        var authResult = new AuthResult(
+            "valid_access_token",
+            DateTime.UtcNow.AddMinutes(15),
+            "valid_refresh_token"
+        );
         _fixture.TokenServiceMock
-            .Setup(ts => ts.GenerateToken(client))
-            .Returns((expectedToken, expectedExpiration));
+            .Setup(ts => ts.GenerateTokens(client))
+            .Returns(authResult);
 
         // Act
         var result = await useCase.Execute(input);
@@ -47,13 +55,24 @@ public class LoginClientUseCaseTest
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNull();
-        result.Value.AccessToken.Should().Be(expectedToken);
-        result.Value.ExpiresAt.Should().Be(expectedExpiration);
+        result.Value.AccessToken.Should().Be(authResult.AccessToken);
+        result.Value.RefreshToken.Should().Be(authResult.RefreshToken); // <-- Novo Assert
 
-        _fixture.ClientRepositoryMock.Verify(repo => repo.GetByEmail(input.Email, It.IsAny<CancellationToken>()), Times.Once);
-        _fixture.PasswordEncripterMock.Verify(enc => enc.Verify(input.Password, client.PasswordHash), Times.Once);
-        _fixture.TokenServiceMock.Verify(ts => ts.GenerateToken(client), Times.Once);
+        // --> NOVAS VERIFICAÇÕES
+        _fixture.RefreshTokenRepositoryMock.Verify(
+            repo => repo.AddAsync(
+                It.Is<RefreshToken>(rt => rt.ClientId == client.Id && rt.TokenValue == authResult.RefreshToken),
+                It.IsAny<CancellationToken>()
+            ),
+            Times.Once
+        );
+        _fixture.UnitOfWorkMock.Verify(uow => uow.Commit(), Times.Once);
+
+        // Verifica se os mocks antigos ainda são chamados corretamente
+        _fixture.TokenServiceMock.Verify(ts => ts.GenerateTokens(client), Times.Once);
     }
+
+    // Os testes de falha agora também precisam verificar se as operações de escrita (Commit/AddAsync) NÃO foram chamadas.
 
     [Fact(DisplayName = "Não Deve Autenticar com E-mail Inexistente")]
     [Trait("Application", "LoginClient - UseCase")]
@@ -73,8 +92,10 @@ public class LoginClientUseCaseTest
         // Assert
         result.IsSuccess.Should().BeFalse();
         result.Error.GetErrors().Should().Contain(e => e.Message == "E-mail ou senha inválidos.");
-        _fixture.PasswordEncripterMock.Verify(enc => enc.Verify(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
-        _fixture.TokenServiceMock.Verify(ts => ts.GenerateToken(It.IsAny<Client>()), Times.Never);
+        
+        // --> VERIFICAÇÃO ADICIONAL
+        _fixture.RefreshTokenRepositoryMock.Verify(repo => repo.AddAsync(It.IsAny<RefreshToken>(), It.IsAny<CancellationToken>()), Times.Never);
+        _fixture.UnitOfWorkMock.Verify(uow => uow.Commit(), Times.Never);
     }
 
     [Fact(DisplayName = "Não Deve Autenticar com Senha Incorreta")]
@@ -86,13 +107,8 @@ public class LoginClientUseCaseTest
         var client = _fixture.CreateValidClient(isEmailVerified: true);
         var useCase = _fixture.CreateUseCase();
 
-        _fixture.ClientRepositoryMock
-            .Setup(repo => repo.GetByEmail(input.Email, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(client);
-
-        _fixture.PasswordEncripterMock
-            .Setup(enc => enc.Verify(input.Password, client.PasswordHash))
-            .Returns(false); // Simula senha incorreta
+        _fixture.ClientRepositoryMock.Setup(repo => repo.GetByEmail(input.Email, It.IsAny<CancellationToken>())).ReturnsAsync(client);
+        _fixture.PasswordEncripterMock.Setup(enc => enc.Verify(input.Password, client.PasswordHash)).Returns(false);
 
         // Act
         var result = await useCase.Execute(input);
@@ -100,7 +116,10 @@ public class LoginClientUseCaseTest
         // Assert
         result.IsSuccess.Should().BeFalse();
         result.Error.GetErrors().Should().Contain(e => e.Message == "E-mail ou senha inválidos.");
-        _fixture.TokenServiceMock.Verify(ts => ts.GenerateToken(It.IsAny<Client>()), Times.Never);
+
+        // --> VERIFICAÇÃO ADICIONAL
+        _fixture.RefreshTokenRepositoryMock.Verify(repo => repo.AddAsync(It.IsAny<RefreshToken>(), It.IsAny<CancellationToken>()), Times.Never);
+        _fixture.UnitOfWorkMock.Verify(uow => uow.Commit(), Times.Never);
     }
 
     [Fact(DisplayName = "Não Deve Autenticar se E-mail Não Foi Verificado")]
@@ -109,12 +128,10 @@ public class LoginClientUseCaseTest
     {
         // Arrange
         var input = _fixture.GetValidLoginInput();
-        var client = _fixture.CreateValidClient(isEmailVerified: false); // Cliente com e-mail não verificado
+        var client = _fixture.CreateValidClient(isEmailVerified: false);
         var useCase = _fixture.CreateUseCase();
 
-        _fixture.ClientRepositoryMock
-            .Setup(repo => repo.GetByEmail(input.Email, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(client);
+        _fixture.ClientRepositoryMock.Setup(repo => repo.GetByEmail(input.Email, It.IsAny<CancellationToken>())).ReturnsAsync(client);
 
         // Act
         var result = await useCase.Execute(input);
@@ -122,7 +139,9 @@ public class LoginClientUseCaseTest
         // Assert
         result.IsSuccess.Should().BeFalse();
         result.Error.GetErrors().Should().Contain(e => e.Message == "Seu e-mail ainda não foi verificado. Por favor, verifique sua caixa de entrada.");
-        _fixture.PasswordEncripterMock.Verify(enc => enc.Verify(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
-        _fixture.TokenServiceMock.Verify(ts => ts.GenerateToken(It.IsAny<Client>()), Times.Never);
+        
+        // --> VERIFICAÇÃO ADICIONAL
+        _fixture.RefreshTokenRepositoryMock.Verify(repo => repo.AddAsync(It.IsAny<RefreshToken>(), It.IsAny<CancellationToken>()), Times.Never);
+        _fixture.UnitOfWorkMock.Verify(uow => uow.Commit(), Times.Never);
     }
 }

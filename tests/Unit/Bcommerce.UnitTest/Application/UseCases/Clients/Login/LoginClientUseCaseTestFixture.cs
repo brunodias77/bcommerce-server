@@ -4,6 +4,7 @@ using Bcommerce.Domain.Customers.Clients.Repositories;
 using Bcommerce.Domain.Security;
 using Bcommerce.Domain.Services;
 using Bcommerce.Domain.Validation.Handlers;
+using Bcommerce.Infrastructure.Data.Repositories;
 using Bogus;
 using Moq;
 
@@ -21,6 +22,10 @@ public class LoginClientUseCaseTestFixture
     public Mock<IClientRepository> ClientRepositoryMock { get; }
     public Mock<IPasswordEncripter> PasswordEncripterMock { get; }
     public Mock<ITokenService> TokenServiceMock { get; }
+    
+    // --> NOVOS MOCKS ADICIONADOS
+    public Mock<IRefreshTokenRepository> RefreshTokenRepositoryMock { get; }
+    public Mock<IUnitOfWork> UnitOfWorkMock { get; }
 
     public LoginClientUseCaseTestFixture()
     {
@@ -28,11 +33,12 @@ public class LoginClientUseCaseTestFixture
         ClientRepositoryMock = new Mock<IClientRepository>();
         PasswordEncripterMock = new Mock<IPasswordEncripter>();
         TokenServiceMock = new Mock<ITokenService>();
+        
+        // --> INICIALIZAÇÃO DOS NOVOS MOCKS
+        RefreshTokenRepositoryMock = new Mock<IRefreshTokenRepository>();
+        UnitOfWorkMock = new Mock<IUnitOfWork>();
     }
-
-    /// <summary>
-    /// Gera um input de login válido.
-    /// </summary>
+    
     public LoginClientInput GetValidLoginInput()
     {
         return new LoginClientInput(
@@ -40,12 +46,7 @@ public class LoginClientUseCaseTestFixture
             Faker.Internet.Password(10)
         );
     }
-
-    /// <summary>
-    /// Cria uma instância de um cliente válido para ser retornado pelos mocks.
-    /// </summary>
-    /// <param name="isEmailVerified">Define se o cliente retornado deve ter o e-mail verificado.</param>
-    /// <returns>Uma instância válida de Client.</returns>
+    
     public Client CreateValidClient(bool isEmailVerified = true)
     {
         var client = Client.NewClient(
@@ -72,10 +73,13 @@ public class LoginClientUseCaseTestFixture
     /// </summary>
     public LoginClientUseCase CreateUseCase()
     {
+        // --> CONSTRUTOR ATUALIZADO COM OS NOVOS MOCKS
         return new LoginClientUseCase(
             ClientRepositoryMock.Object,
             PasswordEncripterMock.Object,
-            TokenServiceMock.Object
+            TokenServiceMock.Object,
+            RefreshTokenRepositoryMock.Object,
+            UnitOfWorkMock.Object
         );
     }
 }

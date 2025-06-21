@@ -1,6 +1,7 @@
 using Bcomerce.Application.UseCases.Catalog.Clients.Create;
 using Bcomerce.Application.UseCases.Catalog.Clients.GetMyProfile;
 using Bcomerce.Application.UseCases.Catalog.Clients.Login;
+using Bcomerce.Application.UseCases.Catalog.Clients.RefreshToken;
 using Bcomerce.Application.UseCases.Catalog.Clients.VerifyEmail;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -100,6 +101,19 @@ public class ClientController : ControllerBase
         }
 
         // CORREÇÃO: Padroniza a resposta de erro.
+        return BadRequest(new { errors = result.Error?.GetErrors() });
+    }
+    
+    [HttpPost("refresh-token")]
+    [ProducesResponseType(typeof(LoginClientOutput), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(object), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenInput input, [FromServices] IRefreshTokenUseCase useCase)
+    {
+        var result = await useCase.Execute(input);
+        if (result.IsSuccess)
+        {
+            return Ok(result.Value);
+        }
         return BadRequest(new { errors = result.Error?.GetErrors() });
     }
 }

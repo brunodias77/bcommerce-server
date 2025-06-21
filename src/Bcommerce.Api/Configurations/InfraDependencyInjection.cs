@@ -35,6 +35,8 @@ public static class InfraDependencyInjection
         services.AddScoped<IUnitOfWork, DapperUnitOfWork>();
         services.AddScoped<IBrandRepository, BrandRepository>(); // <<< ADICIONE ESTA LINHA
         services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>(); // <-- ADICIONE ESTA LINHA
+
     }
 
     private static void AddServices(IServiceCollection services, IConfiguration configuration)

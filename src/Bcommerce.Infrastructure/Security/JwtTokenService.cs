@@ -1,6 +1,7 @@
 using Bcommerce.Domain.Services;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using Bcommerce.Domain.Customers.Clients;
 using Microsoft.Extensions.Configuration;
@@ -12,32 +13,24 @@ public class JwtTokenService : ITokenService
 {
     private readonly IConfiguration _configuration;
 
-    public JwtTokenService(IConfiguration configuration)
-    {
-        _configuration = configuration;
-    }
+    public JwtTokenService(IConfiguration configuration) => _configuration = configuration;
 
-    /// <summary>
-    /// Gera um token JWT e sua data de expiração.
-    /// </summary>
-    /// <param name="client">A entidade do cliente para a qual o token será gerado.</param>
-    /// <returns>Uma tupla com o token e sua data de expiração.</returns>
-    public (string AccessToken, DateTime ExpiresAt) GenerateToken(Client client)
+    public AuthResult GenerateTokens(Client client)
     {
+        // 1. Geração do Access Token (lógica que você já tem)
         var tokenHandler = new JwtSecurityTokenHandler();
-        
         var signinKey = _configuration["Settings:JwtSettings:SigninKey"];
         var key = Encoding.ASCII.GetBytes(signinKey);
 
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, client.Id.ToString()),
-            new(JwtRegisteredClaimNames.Email, client.Email.Value), 
+            new(JwtRegisteredClaimNames.Email, client.Email.Value),
             new(JwtRegisteredClaimNames.Name, client.FirstName),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
-        var expires = DateTime.UtcNow.AddMinutes(Convert.ToDouble(_configuration["Settings:JwtSettings:ExpirationTimeMinutes"]));
+        var expires = DateTime.UtcNow.AddMinutes(15); // << Reduzir tempo de vida do Access Token
 
         var tokenDescriptor = new SecurityTokenDescriptor
         {
@@ -50,8 +43,14 @@ public class JwtTokenService : ITokenService
 
         var securityToken = tokenHandler.CreateToken(tokenDescriptor);
         var accessToken = tokenHandler.WriteToken(securityToken);
+        
+        // 2. Geração do Refresh Token
+        var randomNumber = new byte[64];
+        using var rng = RandomNumberGenerator.Create();
+        rng.GetBytes(randomNumber);
+        var refreshToken = Convert.ToBase64String(randomNumber);
 
-        // CORREÇÃO: Retorna o token e a data de expiração calculada a partir da configuração.
-        return (AccessToken: accessToken, ExpiresAt: expires);
+        // 3. Retornar ambos os tokens
+        return new AuthResult(accessToken, expires, refreshToken);
     }
 }

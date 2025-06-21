@@ -12,5 +12,9 @@ public interface ITokenService
     /// </summary>
     /// <param name="client">A entidade do cliente.</param>
     /// <returns>Uma tupla contendo a string do token de acesso (AccessToken) e a data de expiração (ExpiresAt).</returns>
-    (string AccessToken, DateTime ExpiresAt) GenerateToken(Client client);
+    AuthResult GenerateTokens(Client client); // Nome e retorno atualizados
 }
+
+// Um record para encapsular o resultado da autenticação
+public record AuthResult(string AccessToken, DateTime ExpiresAt, string RefreshToken);
+

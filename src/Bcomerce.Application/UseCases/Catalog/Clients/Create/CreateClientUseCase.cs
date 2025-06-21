@@ -78,7 +78,7 @@ public class CreateClientUseCase : ICreateClientUseCase
             
             foreach (var domainEvent in client.Events)
             {
-                await _publisher.PublishAsync(domainEvent, CancellationToken.None);
+                await _publisher.PublishAsync((dynamic)domainEvent, CancellationToken.None);
             }
 
             return Result<CreateClientOutput, Notification>.Ok(CreateClientOutput.FromClient(client));

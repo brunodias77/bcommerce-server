@@ -40,8 +40,9 @@ public class DomainEventPublisher : IDomainEventPublisher
         // Isso garante que qualquer dependência com tempo de vida 'Scoped' (como IUnitOfWork ou DbContext)
         // seja criada e descartada corretamente para esta operação, evitando problemas de concorrência
         // ou de tempo de vida do objeto (ex: "cannot access a disposed object").
-        using var scope = _serviceProvider.CreateScope();
-        
+        // CORREÇÃO: Usando 'await using' e 'CreateAsyncScope()'
+        await using var scope = _serviceProvider.CreateAsyncScope();
+
         // Resolve todos os handlers registrados para o tipo de evento específico.
         var handlers = scope.ServiceProvider.GetServices<IDomainEventHandler<TDomainEvent>>();
 
