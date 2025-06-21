@@ -1250,3 +1250,18 @@ COMMIT;
 -- -- =====================================================================
 -- -- FIM DO SCRIPT
 -- -- =====================================================================
+UPDATE clients
+SET
+    email_verified_at = NOW(), -- Define a data de verificação para o momento atual
+    updated_at = NOW(),        -- Atualiza a data da última modificação do registro
+    version = version + 1      -- Incrementa o número da versão
+WHERE
+    client_id = '86ad7c5b-cfc7-441c-a11c-2c5830d73f8a';
+
+
+
+
+
+
+
+
