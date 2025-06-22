@@ -647,6 +647,48 @@ COMMIT;
 -- FIM DO SCRIPT
 -- =====================================================================
 
+
+-- Categorias Principais (Nível 1):
+-- Smartphones
+
+-- Descrição: Celulares de última geração
+
+-- Tablets
+
+-- Descrição: Dispositivos portáteis para produtividade e entretenimento
+
+-- Notebooks
+
+-- Descrição: Computadores portáteis para trabalho e estudo
+
+-- Acessórios
+
+-- Descrição: Complementos para seus dispositivos
+
+-- Wearables
+
+-- Descrição: Dispositivos vestíveis e smartwatches
+
+-- Áudio
+
+-- Descrição: Fones de ouvido e dispositivos de som
+
+
+INSERT INTO categories (name, slug, description, sort_order) VALUES
+('Smartphones', 'smartphones', 'Celulares de última geração', 10),
+('Tablets', 'tablets', 'Dispositivos portáteis', 20),
+('Notebooks', 'notebooks', 'Computadores portáteis', 30),
+('Acessórios', 'acessorios', 'Complementos para dispositivos', 40),
+('Wearables', 'wearables', 'Dispositivos vestíveis', 50),
+('Áudio', 'audio', 'Dispositivos de som', 60);
+
+-- Inserção das marcas Apple, Samsung e Xiaomi
+INSERT INTO brands (name, slug, description, logo_url, is_active) 
+VALUES
+('Apple', 'apple', 'Tecnologia inovadora e design premium', 'https://exemplo.com/logos/apple.png', TRUE),
+('Samsung', 'samsung', 'Inovação e qualidade para todos os dispositivos', 'https://exemplo.com/logos/samsung.png', TRUE),
+('Xiaomi', 'xiaomi', 'Tecnologia de alta qualidade a preços acessíveis', 'https://exemplo.com/logos/xiaomi.png', TRUE);
+
 UPDATE clients
 SET
     email_verified_at = NOW(), -- Define a data de verificação para o momento atual

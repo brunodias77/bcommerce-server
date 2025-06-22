@@ -12,7 +12,9 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="UseCases\Catalog\" />
+      <Folder Include="UseCases\Catalog\Brands\" />
+      <Folder Include="UseCases\Marketing\" />
+      <Folder Include="UseCases\Sales\" />
     </ItemGroup>
 
 </Project>

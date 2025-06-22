@@ -57,7 +57,6 @@ public class CategoryRepository : ICategoryRepository
         await _uow.Connection.ExecuteAsync(new CommandDefinition(sql, aggregate, _uow.Transaction, cancellationToken: cancellationToken));
     }
 
-    // MÉTODO ADICIONADO
     public async Task<Category?> GetBySlugAsync(string slug, CancellationToken cancellationToken)
     {
         const string sql = "SELECT * FROM categories WHERE slug = @Slug AND deleted_at IS NULL;";
@@ -69,7 +68,6 @@ public class CategoryRepository : ICategoryRepository
         return model is null ? null : Hydrate(model);
     }
 
-    // MÉTODO ADICIONADO
     public async Task<bool> ExistsWithNameAsync(string name, CancellationToken cancellationToken)
     {
         const string sql = "SELECT 1 FROM categories WHERE name = @Name AND deleted_at IS NULL;";
@@ -81,8 +79,6 @@ public class CategoryRepository : ICategoryRepository
         return result.HasValue;
     }
     
-    // Este método não faz parte da interface IRepository, mas é útil para casos de uso de listagem.
-    // Pode ser movido para a interface se for um requisito comum.
     public async Task<IEnumerable<Category>> GetAllAsync(CancellationToken cancellationToken)
     {
         const string sql = "SELECT * FROM categories WHERE deleted_at IS NULL ORDER BY sort_order, name;";
@@ -94,7 +90,6 @@ public class CategoryRepository : ICategoryRepository
 
     private static Category Hydrate(CategoryDataModel model)
     {
-        // A hidratação está correta e já inclui o sort_order
         return Category.With(
             model.category_id,
             model.name,
@@ -102,7 +97,7 @@ public class CategoryRepository : ICategoryRepository
             model.description,
             model.is_active,
             model.parent_category_id,
-            model.sort_order, // <- Correto
+            model.sort_order,
             model.created_at,
             model.updated_at
         );

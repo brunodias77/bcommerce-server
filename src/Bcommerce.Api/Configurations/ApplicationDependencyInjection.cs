@@ -1,4 +1,9 @@
 
+using Bcomerce.Application.UseCases.Catalog.Categories.CreateCategory;
+using Bcomerce.Application.UseCases.Catalog.Categories.DeleteCategory;
+using Bcomerce.Application.UseCases.Catalog.Categories.GetCategoryById;
+using Bcomerce.Application.UseCases.Catalog.Categories.ListCategories;
+using Bcomerce.Application.UseCases.Catalog.Categories.UpdateCategory;
 using Bcomerce.Application.UseCases.Catalog.Clients.AddAddress;
 using Bcomerce.Application.UseCases.Catalog.Clients.Create;
 using Bcomerce.Application.UseCases.Catalog.Clients.DeleteAddress;
@@ -35,6 +40,13 @@ public static class ApplicationDependencyInjection
         services.AddScoped<IUpdateAddressUseCase, UpdateAddressUseCase>();
         services.AddScoped<IDeleteAddressUseCase, DeleteAddressUseCase>();
         services.AddScoped<ILogoutUseCase, LogoutUseCase>();
+        services.AddScoped<ICreateCategoryUseCase, CreateCategoryUseCase>();
+        services.AddScoped<IListCategoriesUseCase, ListCategoriesUseCase>();
+        services.AddScoped<IDeleteCategoryUseCase, DeleteCategoryUseCase>();
+        services.AddScoped<IGetCategoryByIdUseCase, GetCategoryByIdUseCase>();
+        services.AddScoped<IUpdateCategoryUseCase, UpdateCategoryUseCase>();
+
+
     }
 
     private static void AddEvents(IServiceCollection services, IConfiguration configuration)
