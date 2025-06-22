@@ -1,6 +1,7 @@
 using Bcomerce.Application.UseCases.Catalog.Clients.Create;
 using Bcomerce.Application.UseCases.Catalog.Clients.GetMyProfile;
 using Bcomerce.Application.UseCases.Catalog.Clients.Login;
+using Bcomerce.Application.UseCases.Catalog.Clients.Logout;
 using Bcomerce.Application.UseCases.Catalog.Clients.RefreshToken;
 using Bcomerce.Application.UseCases.Catalog.Clients.VerifyEmail;
 using Microsoft.AspNetCore.Authorization;
@@ -115,5 +116,17 @@ public class ClientController : ControllerBase
             return Ok(result.Value);
         }
         return BadRequest(new { errors = result.Error?.GetErrors() });
+    }
+    
+    /// <summary>
+    /// Invalida o token de acesso atual do usuário.
+    /// </summary>
+    [HttpPost("logout")]
+    [Authorize] // O usuário precisa estar logado para fazer logout.
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Logout([FromServices] ILogoutUseCase useCase)
+    {
+        await useCase.Execute(null);
+        return NoContent(); // Retorna 204 No Content para indicar sucesso.
     }
 }

@@ -2,6 +2,7 @@ using Bcommerce.Api.Configurations;
 using Microsoft.AspNetCore.Authentication.JwtBearer; // Adicionar usings
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Bcommerce.Api.Middlewares;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -81,6 +82,7 @@ void ConfigureMiddleware(WebApplication app)
         app.UseSwaggerUI();
     }
     app.UseHttpsRedirection();
+    app.UseMiddleware<TokenValidationMiddleware>();
     app.UseAuthorization();
     app.MapControllers();
 }

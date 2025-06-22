@@ -5,6 +5,7 @@ using Bcomerce.Application.UseCases.Catalog.Clients.DeleteAddress;
 using Bcomerce.Application.UseCases.Catalog.Clients.GetMyProfile;
 using Bcomerce.Application.UseCases.Catalog.Clients.ListAddresses;
 using Bcomerce.Application.UseCases.Catalog.Clients.Login;
+using Bcomerce.Application.UseCases.Catalog.Clients.Logout;
 using Bcomerce.Application.UseCases.Catalog.Clients.UpdateAddress;
 using Bcomerce.Application.UseCases.Catalog.Clients.VerifyEmail;
 using Bcommerce.Application.Events.Clients;
@@ -33,6 +34,7 @@ public static class ApplicationDependencyInjection
         services.AddScoped<IListMyAddressesUseCase, ListMyAddressesUseCase>();
         services.AddScoped<IUpdateAddressUseCase, UpdateAddressUseCase>();
         services.AddScoped<IDeleteAddressUseCase, DeleteAddressUseCase>();
+        services.AddScoped<ILogoutUseCase, LogoutUseCase>();
     }
 
     private static void AddEvents(IServiceCollection services, IConfiguration configuration)

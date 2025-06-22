@@ -27,7 +27,8 @@ public class JwtTokenService : ITokenService
             new(JwtRegisteredClaimNames.Sub, client.Id.ToString()),
             new(JwtRegisteredClaimNames.Email, client.Email.Value),
             new(JwtRegisteredClaimNames.Name, client.FirstName),
-            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new(ClaimTypes.Role, client.Role.ToString())
         };
 
         var expires = DateTime.UtcNow.AddMinutes(15); // << Reduzir tempo de vida do Access Token

@@ -25,6 +25,7 @@ CREATE TYPE address_type_enum AS ENUM ('shipping', 'billing');
 CREATE TYPE consent_type_enum AS ENUM ('marketing_email', 'newsletter_subscription', 'terms_of_service', 'privacy_policy', 'cookies_essential', 'cookies_analytics', 'cookies_marketing');
 CREATE TYPE card_brand_enum AS ENUM ('visa', 'mastercard', 'amex', 'elo', 'hipercard', 'diners_club', 'discover', 'jcb', 'aura', 'other');
 CREATE TYPE audit_operation_type_enum AS ENUM ('INSERT', 'UPDATE', 'DELETE', 'LOGIN_SUCCESS', 'LOGIN_FAILURE', 'PASSWORD_RESET_REQUEST', 'PASSWORD_RESET_SUCCESS', 'ORDER_STATUS_CHANGE', 'PAYMENT_STATUS_CHANGE', 'SYSTEM_ACTION');
+CREATE TYPE user_role_enum AS ENUM ('customer', 'admin');
 
 -- ================================================
 -- FUNÇÕES GLOBAIS E DE APOIO
@@ -172,6 +173,9 @@ CREATE TABLE clients (
     date_of_birth DATE,
     newsletter_opt_in BOOLEAN NOT NULL DEFAULT FALSE,
     status VARCHAR(20) NOT NULL DEFAULT 'ativo' CHECK (status IN ('ativo', 'inativo', 'banido')),
+    role user_role_enum NOT NULL DEFAULT 'customer',
+    failed_login_attempts SMALLINT NOT NULL DEFAULT 0,
+    account_locked_until TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMPTZ,
@@ -182,6 +186,7 @@ CREATE UNIQUE INDEX idx_clients_active_email ON clients (email) WHERE deleted_at
 CREATE INDEX idx_clients_status ON clients (status) WHERE deleted_at IS NULL;
 CREATE TRIGGER set_timestamp_clients BEFORE UPDATE ON clients FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
 CREATE TRIGGER audit_clients_trigger AFTER INSERT OR UPDATE OR DELETE ON clients FOR EACH ROW EXECUTE FUNCTION trigger_log_audit('client_id');
+CREATE INDEX idx_clients_role ON clients (role);
 
 -- Tabela de Endereços
 CREATE TABLE addresses (
@@ -578,6 +583,17 @@ CREATE TABLE refresh_tokens (
 );
 
 CREATE INDEX idx_refresh_tokens_client_id ON refresh_tokens (client_id);
+
+-- Adicionamos uma nova tabela para armazenar os identificadores (jti) dos tokens
+-- que foram explicitamente revogados (logout).
+CREATE TABLE revoked_tokens (
+    jti UUID PRIMARY KEY,
+    client_id UUID NOT NULL REFERENCES clients(client_id) ON DELETE CASCADE,
+    expires_at TIMESTAMPTZ NOT NULL
+);
+
+-- Um índice na data de expiração é útil para limpar tokens antigos e expirados da tabela.
+CREATE INDEX idx_revoked_tokens_expires_at ON revoked_tokens (expires_at);
 
 -- =====================================================================
 -- SEÇÃO DE NOTAS DE IMPLEMENTAÇÃO E MANUTENÇÃO

@@ -36,6 +36,7 @@ public static class InfraDependencyInjection
         services.AddScoped<IBrandRepository, BrandRepository>(); // <<< ADICIONE ESTA LINHA
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>(); // <-- ADICIONE ESTA LINHA
+        services.AddScoped<IRevokedTokenRepository, RevokedTokenRepository>();
 
     }
 
