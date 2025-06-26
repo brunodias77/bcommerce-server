@@ -13,6 +13,7 @@ using Bcomerce.Application.UseCases.Catalog.Clients.Login;
 using Bcomerce.Application.UseCases.Catalog.Clients.Logout;
 using Bcomerce.Application.UseCases.Catalog.Clients.UpdateAddress;
 using Bcomerce.Application.UseCases.Catalog.Clients.VerifyEmail;
+using Bcomerce.Application.UseCases.Catalog.Products.CreateProduct;
 using Bcommerce.Application.Events.Clients;
 using Bcommerce.Domain.Common;
 using Bcommerce.Domain.Customers.Clients.Events;
@@ -45,6 +46,7 @@ public static class ApplicationDependencyInjection
         services.AddScoped<IDeleteCategoryUseCase, DeleteCategoryUseCase>();
         services.AddScoped<IGetCategoryByIdUseCase, GetCategoryByIdUseCase>();
         services.AddScoped<IUpdateCategoryUseCase, UpdateCategoryUseCase>();
+        services.AddScoped<ICreateProductUseCase, CreateProductUseCase>();
 
 
     }
