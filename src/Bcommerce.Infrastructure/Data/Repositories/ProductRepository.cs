@@ -75,9 +75,49 @@ public class ProductRepository : IProductRepository
             await InsertVariants(aggregate.Variants, cancellationToken);
         }
         
-        public Task Update(Product aggregate, CancellationToken cancellationToken)
+        public async Task Update(Product aggregate, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException("Update de agregados complexos requer uma estratégia de sincronização.");
+            // Por enquanto, vamos atualizar apenas os dados da tabela principal 'products'.
+            // A atualização de imagens e variantes seria feita em UseCases específicos.
+            const string productSql = @"
+                UPDATE products SET
+                    name = @Name,
+                    slug = @Slug,
+                    description = @Description,
+                    base_price = @BasePriceAmount,
+                    stock_quantity = @StockQuantity,
+                    is_active = @IsActive,
+                    category_id = @CategoryId,
+                    brand_id = @BrandId,
+                    weight_kg = @Weight,
+                    height_cm = @Height,
+                    width_cm = @Width,
+                    depth_cm = @Depth,
+                    updated_at = @UpdatedAt,
+                    version = version + 1
+                WHERE product_id = @Id;
+            ";
+
+            await _uow.Connection.ExecuteAsync(new CommandDefinition(productSql, new
+            {
+                aggregate.Id,
+                aggregate.Name,
+                aggregate.Slug,
+                aggregate.Description,
+                BasePriceAmount = aggregate.BasePrice.Amount,
+                aggregate.StockQuantity,
+                aggregate.IsActive,
+                aggregate.CategoryId,
+                aggregate.BrandId,
+                Weight = aggregate.Dimensions.WeightKg,
+                Height = aggregate.Dimensions.HeightCm,
+                Width = aggregate.Dimensions.WidthCm,
+                Depth = aggregate.Dimensions.DepthCm,
+                aggregate.UpdatedAt
+            }, _uow.Transaction, cancellationToken: cancellationToken));
+
+            // A lógica de sincronizar coleções (imagens, variantes) seria mais complexa
+            // e viria aqui se necessário.
         }
 
         public Task Delete(Product aggregate, CancellationToken cancellationToken)
@@ -126,6 +166,45 @@ public class ProductRepository : IProductRepository
                 PageSize = pageSize,
                 Offset = (page - 1) * pageSize
             });
+        }
+        
+        public async Task<IEnumerable<Product>> ListAsync(int page, int pageSize, string? searchTerm, string sortBy, string sortDirection, CancellationToken cancellationToken)
+        {
+            var baseSql = @"
+                SELECT p.*,
+                       pi.product_image_id as Id, pi.*,
+                       pv.product_variant_id as Id, pv.*
+                FROM products p
+                LEFT JOIN product_images pi ON p.product_id = pi.product_id AND pi.is_cover = TRUE AND pi.deleted_at IS NULL
+                LEFT JOIN product_variants pv ON p.product_id = pv.product_id AND pv.deleted_at IS NULL
+                WHERE p.deleted_at IS NULL
+            ";
+
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                baseSql += " AND p.name ILIKE @SearchTerm ";
+            }
+
+            // Validação para evitar SQL Injection na ordenação
+            var validSortColumns = new Dictionary<string, string>
+            {
+                ["name"] = "p.name",
+                ["price"] = "p.base_price",
+                ["sku"] = "p.base_sku"
+            };
+            var orderBy = validSortColumns.ContainsKey(sortBy.ToLower()) ? validSortColumns[sortBy.ToLower()] : "p.name";
+            var direction = sortDirection.Equals("desc", StringComparison.OrdinalIgnoreCase) ? "DESC" : "ASC";
+    
+            baseSql += $" ORDER BY {orderBy} {direction} LIMIT @PageSize OFFSET @Offset";
+    
+            var parameters = new
+            {
+                SearchTerm = $"%{searchTerm}%",
+                PageSize = pageSize,
+                Offset = (page - 1) * pageSize
+            };
+
+            return await QueryAndHydrateProduct(baseSql, parameters);
         }
 
         private async Task<IEnumerable<Product>> QueryAndHydrateProduct(string sql, object param)

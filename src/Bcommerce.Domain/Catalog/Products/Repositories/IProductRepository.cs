@@ -9,4 +9,10 @@ public interface IProductRepository : IRepository<Product>
     Task<Product?> GetByBaseSkuAsync(string baseSku, CancellationToken cancellationToken);
         
     // Para busca com Full-Text Search
-    Task<IEnumerable<Product>> SearchAsync(string searchTerm, int page, int pageSize, CancellationToken cancellationToken);}
+    Task<IEnumerable<Product>> SearchAsync(string searchTerm, int page, int pageSize, CancellationToken cancellationToken);
+    Task<IEnumerable<Product>> ListAsync(int page, int pageSize, string? searchTerm, string sortBy, string sortDirection, CancellationToken cancellationToken);
+
+    
+    
+}
+    

@@ -102,6 +102,28 @@ public class Product : AggregateRoot
         }
 
         // --- MÉTODOS DE NEGÓCIO ---
+        
+        public void Update(
+            string name, string? description, Money newBasePrice, int newStockQuantity,
+            bool isActive, Guid categoryId, Guid? brandId, Dimensions newDimensions,
+            IValidationHandler handler)
+        {
+            Name = name;
+            Description = description;
+            BasePrice = newBasePrice;
+            StockQuantity = newStockQuantity;
+            IsActive = isActive;
+            CategoryId = categoryId;
+            BrandId = brandId;
+            Dimensions = newDimensions;
+            UpdatedAt = DateTime.UtcNow;
+    
+            // Gera um novo slug caso o nome mude
+            Slug = GenerateSlug(name);
+    
+            // Revalida o estado completo da entidade
+            Validate(handler);
+        }
 
         public void AddImage(string imageUrl, string? altText)
         {

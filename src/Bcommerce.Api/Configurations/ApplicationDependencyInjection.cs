@@ -14,6 +14,9 @@ using Bcomerce.Application.UseCases.Catalog.Clients.Logout;
 using Bcomerce.Application.UseCases.Catalog.Clients.UpdateAddress;
 using Bcomerce.Application.UseCases.Catalog.Clients.VerifyEmail;
 using Bcomerce.Application.UseCases.Catalog.Products.CreateProduct;
+using Bcomerce.Application.UseCases.Catalog.Products.GetProductById;
+using Bcomerce.Application.UseCases.Catalog.Products.ListProducts;
+using Bcomerce.Application.UseCases.Catalog.Products.UpdateProduct;
 using Bcommerce.Application.Events.Clients;
 using Bcommerce.Domain.Common;
 using Bcommerce.Domain.Customers.Clients.Events;
@@ -47,8 +50,9 @@ public static class ApplicationDependencyInjection
         services.AddScoped<IGetCategoryByIdUseCase, GetCategoryByIdUseCase>();
         services.AddScoped<IUpdateCategoryUseCase, UpdateCategoryUseCase>();
         services.AddScoped<ICreateProductUseCase, CreateProductUseCase>();
-
-
+        services.AddScoped<IGetProductByIdUseCase, GetProductByIdUseCase>();
+        services.AddScoped<IListProductsUseCase, ListProductsUseCase>();
+        services.AddScoped<IUpdateProductUseCase, UpdateProductUseCase>();
     }
 
     private static void AddEvents(IServiceCollection services, IConfiguration configuration)
