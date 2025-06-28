@@ -43,7 +43,17 @@ public class CartRepository : ICartRepository
 
                 if (cartItemData != null)
                 {
-                    var cartItem = CartItem.With(cartItemData.cart_item_id, cartItemData.cart_id, cartItemData.product_variant_id, cartItemData.quantity, Money.Create(cartItemData.unit_price, cartItemData.currency));
+                    // --- ALTERAÇÃO AQUI ---
+                    // A chamada para CartItem.With agora inclui os campos createdAt e updatedAt.
+                    var cartItem = CartItem.With(
+                        cartItemData.cart_item_id, 
+                        cartItemData.cart_id, 
+                        cartItemData.product_variant_id, 
+                        cartItemData.quantity, 
+                        Money.Create(cartItemData.unit_price, cartItemData.currency),
+                        cartItemData.created_at, // Campo adicionado
+                        cartItemData.updated_at  // Campo adicionado
+                    );
                     (cart.Items as List<CartItem>)?.Add(cartItem);
                 }
                 

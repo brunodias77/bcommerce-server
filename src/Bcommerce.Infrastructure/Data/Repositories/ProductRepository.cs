@@ -1,8 +1,8 @@
+using System.Text;
 using Bcommerce.Domain.Catalog.Products;
 using Bcommerce.Domain.Catalog.Products.Entities;
 using Bcommerce.Domain.Catalog.Products.Repositories;
 using Bcommerce.Domain.Catalog.Products.ValueObjects;
-using Bcommerce.Domain.Common;
 using Bcommerce.Infrastructure.Data.Models;
 using Dapper;
 
@@ -180,45 +180,13 @@ public class ProductRepository : IProductRepository
 
     public async Task<IEnumerable<Product>> ListAsync(int page, int pageSize, string? searchTerm, Guid? categoryId, Guid? brandId, string sortBy, string sortDirection, CancellationToken cancellationToken)
     {
-        var sqlBuilder = new SqlBuilder();
-        // A query agora busca apenas a imagem de capa para otimização
-        var selector = sqlBuilder.AddTemplate(@"
-        SELECT p.*, pi.image_url as cover_image_url
-        FROM products p
-        LEFT JOIN product_images pi ON p.product_id = pi.product_id AND pi.is_cover = TRUE AND pi.deleted_at IS NULL
-        /**where**/
-    ");
-
-        sqlBuilder.Where("p.deleted_at IS NULL AND p.is_active = TRUE");
-
-        if (!string.IsNullOrWhiteSpace(searchTerm))
-        {
-            sqlBuilder.Where("p.name ILIKE @SearchTerm OR p.base_sku ILIKE @SearchTerm", new { SearchTerm = $"%{searchTerm}%" });
-        }
-        if (categoryId.HasValue)
-        {
-            sqlBuilder.Where("p.category_id = @CategoryId", new { CategoryId = categoryId });
-        }
-        if (brandId.HasValue)
-        {
-            sqlBuilder.Where("p.brand_id = @BrandId", new { BrandId = brandId });
-        }
-
-        // Ordenação e Paginação
+        // O código original já ignorava o SqlBuilder e usava esta query manual.
+        // A refatoração aqui é simplesmente remover o código morto do SqlBuilder.
         var validSortColumns = new Dictionary<string, string> { ["name"] = "p.name", ["price"] = "p.base_price" };
         var orderBy = validSortColumns.ContainsKey(sortBy.ToLower()) ? validSortColumns[sortBy.ToLower()] : "p.name";
         var direction = sortDirection.Equals("desc", StringComparison.OrdinalIgnoreCase) ? "DESC" : "ASC";
-        sqlBuilder.OrderBy($"{orderBy} {direction}");
-        sqlBuilder.AddParameters(new { PageSize = pageSize, Offset = (page - 1) * pageSize });
 
-        var finalSql = selector.RawSql + " LIMIT @PageSize OFFSET @Offset";
-
-        // Dapper não hidrata agregados complexos com SqlBuilder, então faremos uma hidratação simples.
-        // Esta parte precisará de um ajuste se você quiser carregar variantes na listagem.
-        // Por simplicidade, vamos usar o QueryAndHydrateProduct que já existe, mas a query otimizada seria melhor.
-        // Para manter a simplicidade por agora, vamos adaptar a query para funcionar com a hidratação existente.
-        // NOTA: A query otimizada é complexa. Manterei a query original com filtros adicionais por agora.
-
+        // NOTA: A query original para hidratação completa foi mantida, conforme a lógica do código anterior.
         var fullQuery = @"
         SELECT p.*, pi.product_image_id as Id, pi.*, pv.product_variant_id as Id, pv.*
         FROM products p
@@ -227,28 +195,44 @@ public class ProductRepository : IProductRepository
         WHERE p.deleted_at IS NULL AND p.is_active = TRUE" +
             (categoryId.HasValue ? " AND p.category_id = @CategoryId" : "") +
             (brandId.HasValue ? " AND p.brand_id = @BrandId" : "") +
-            (!string.IsNullOrWhiteSpace(searchTerm) ? " AND p.name ILIKE @SearchTerm" : "") +
+            (!string.IsNullOrWhiteSpace(searchTerm) ? " AND (p.name ILIKE @SearchTerm OR p.base_sku ILIKE @SearchTerm)" : "") +
             $" ORDER BY {orderBy} {direction} LIMIT @PageSize OFFSET @Offset";
-
-        var parameters = new { SearchTerm = $"%{searchTerm}%", CategoryId = categoryId, BrandId = brandId, PageSize = pageSize, Offset = (page - 1) * pageSize };
+            
+        var parameters = new 
+        { 
+            SearchTerm = $"%{searchTerm}%", 
+            CategoryId = categoryId, 
+            BrandId = brandId, 
+            PageSize = pageSize, 
+            Offset = (page - 1) * pageSize 
+        };
 
         return await QueryAndHydrateProduct(fullQuery, parameters);
     }
 
     public async Task<int> CountAsync(string? searchTerm, Guid? categoryId, Guid? brandId, CancellationToken cancellationToken)
     {
-        var sqlBuilder = new SqlBuilder();
-        sqlBuilder.AddTemplate("SELECT COUNT(p.product_id) FROM products p /**where**/");
+        // Refatorado para usar StringBuilder e DynamicParameters, removendo o SqlBuilder.
+        var sql = new StringBuilder("SELECT COUNT(p.product_id) FROM products p WHERE p.deleted_at IS NULL AND p.is_active = TRUE");
+        var parameters = new DynamicParameters();
 
-        sqlBuilder.Where("p.deleted_at IS NULL AND p.is_active = TRUE");
         if (!string.IsNullOrWhiteSpace(searchTerm))
-            sqlBuilder.Where("p.name ILIKE @SearchTerm", new { SearchTerm = $"%{searchTerm}%" });
+        {
+            sql.Append(" AND p.name ILIKE @SearchTerm");
+            parameters.Add("SearchTerm", $"%{searchTerm}%");
+        }
         if (categoryId.HasValue)
-            sqlBuilder.Where("p.category_id = @CategoryId", new { CategoryId = categoryId });
+        {
+            sql.Append(" AND p.category_id = @CategoryId");
+            parameters.Add("CategoryId", categoryId.Value);
+        }
         if (brandId.HasValue)
-            sqlBuilder.Where("p.brand_id = @BrandId", new { BrandId = brandId });
+        {
+            sql.Append(" AND p.brand_id = @BrandId");
+            parameters.Add("BrandId", brandId.Value);
+        }
 
-        return await _uow.Connection.ExecuteScalarAsync<int>(sqlBuilder.RawSql, sqlBuilder.Parameters);
+        return await _uow.Connection.ExecuteScalarAsync<int>(sql.ToString(), parameters);
     }
 
     private async Task<IEnumerable<Product>> QueryAndHydrateProduct(string sql, object param)
