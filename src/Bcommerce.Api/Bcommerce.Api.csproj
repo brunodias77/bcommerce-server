@@ -15,4 +15,8 @@
       <ProjectReference Include="..\Bcommerce.Infrastructure\Bcommerce.Infrastructure.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Compile Remove="Controllers\WeatherForecastController.cs" />
+    </ItemGroup>
+
 </Project>

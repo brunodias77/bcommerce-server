@@ -6,4 +6,6 @@ public interface ICategoryRepository : IRepository<Category>
 {
     Task<Category?> GetBySlugAsync(string slug, CancellationToken cancellationToken);
     Task<bool> ExistsWithNameAsync(string name, CancellationToken cancellationToken);
+    Task<IEnumerable<Category>> GetAllAsync(CancellationToken cancellationToken);
+
 }

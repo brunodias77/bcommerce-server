@@ -13,6 +13,10 @@ public class ClientDataModel
     public DateTime? date_of_birth { get; set; } // Postgres DATE maps to DateTime; Npgsql 6+ handles DateOnly
     public bool newsletter_opt_in { get; set; }
     public string status { get; set; } = string.Empty; // Ler como string para conversão manual para enum
+    public string role { get; set; } = string.Empty;
+    public int failed_login_attempts { get; set; }
+    public DateTime? account_locked_until { get; set; }
+    
     public DateTime created_at { get; set; }
     public DateTime updated_at { get; set; }
     public DateTime? deleted_at { get; set; }

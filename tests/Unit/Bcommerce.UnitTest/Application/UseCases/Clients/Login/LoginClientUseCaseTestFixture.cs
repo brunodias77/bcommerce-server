@@ -1,11 +1,13 @@
 using Bcomerce.Application.UseCases.Catalog.Clients.Login;
 using Bcommerce.Domain.Customers.Clients;
+using Bcommerce.Domain.Customers.Clients.Enums;
 using Bcommerce.Domain.Customers.Clients.Repositories;
 using Bcommerce.Domain.Security;
 using Bcommerce.Domain.Services;
 using Bcommerce.Domain.Validation.Handlers;
 using Bcommerce.Infrastructure.Data.Repositories;
 using Bogus;
+using Microsoft.Extensions.Configuration;
 using Moq;
 
 namespace Bcommerce.UnitTest.Application.UseCases.Clients.Login;
@@ -22,10 +24,11 @@ public class LoginClientUseCaseTestFixture
     public Mock<IClientRepository> ClientRepositoryMock { get; }
     public Mock<IPasswordEncripter> PasswordEncripterMock { get; }
     public Mock<ITokenService> TokenServiceMock { get; }
-    
-    // --> NOVOS MOCKS ADICIONADOS
     public Mock<IRefreshTokenRepository> RefreshTokenRepositoryMock { get; }
     public Mock<IUnitOfWork> UnitOfWorkMock { get; }
+    
+    // --> NOVO MOCK ADICIONADO
+    public Mock<IConfiguration> ConfigurationMock { get; }
 
     public LoginClientUseCaseTestFixture()
     {
@@ -33,10 +36,15 @@ public class LoginClientUseCaseTestFixture
         ClientRepositoryMock = new Mock<IClientRepository>();
         PasswordEncripterMock = new Mock<IPasswordEncripter>();
         TokenServiceMock = new Mock<ITokenService>();
-        
-        // --> INICIALIZAÇÃO DOS NOVOS MOCKS
         RefreshTokenRepositoryMock = new Mock<IRefreshTokenRepository>();
         UnitOfWorkMock = new Mock<IUnitOfWork>();
+        
+        // --> INICIALIZAÇÃO DO NOVO MOCK
+        ConfigurationMock = new Mock<IConfiguration>();
+        
+        // Configura valores padrão para as configurações de lockout
+        SetupConfiguration("Settings:AccountLockout:MaxFailedAccessAttempts", "5");
+        SetupConfiguration("Settings:AccountLockout:DefaultLockoutMinutes", "15");
     }
     
     public LoginClientInput GetValidLoginInput()
@@ -47,25 +55,37 @@ public class LoginClientUseCaseTestFixture
         );
     }
     
-    public Client CreateValidClient(bool isEmailVerified = true)
+    // --> MÉTODO ATUALIZADO PARA SUPORTAR O ESTADO DE BLOQUEIO
+    public Client CreateValidClient(bool isEmailVerified = true, bool isLocked = false, int failedAttempts = 0)
     {
-        var client = Client.NewClient(
+        var client = Client.With(
+            Guid.NewGuid(),
             Faker.Person.FirstName,
             Faker.Person.LastName,
             Faker.Internet.Email(),
+            isEmailVerified ? DateTime.UtcNow : null,
             Faker.Phone.PhoneNumber(),
             "valid_hashed_password",
-            null, null, false,
-            Notification.Create()
+            null,
+            null,
+            false,
+            ClientStatus.Active,
+            Role.Customer,
+            failedAttempts,
+            isLocked ? DateTime.UtcNow.AddMinutes(15) : null,
+            DateTime.UtcNow.AddDays(-10),
+            DateTime.UtcNow.AddDays(-1),
+            null
         );
-
-        if (isEmailVerified)
-        {
-            client.VerifyEmail();
-        }
         
         client.ClearEvents();
         return client;
+    }
+
+    // Método auxiliar para configurar o mock de IConfiguration
+    public void SetupConfiguration(string key, string value)
+    {
+        ConfigurationMock.Setup(c => c.GetSection(key).Value).Returns(value);
     }
 
     /// <summary>
@@ -73,13 +93,13 @@ public class LoginClientUseCaseTestFixture
     /// </summary>
     public LoginClientUseCase CreateUseCase()
     {
-        // --> CONSTRUTOR ATUALIZADO COM OS NOVOS MOCKS
         return new LoginClientUseCase(
             ClientRepositoryMock.Object,
             PasswordEncripterMock.Object,
             TokenServiceMock.Object,
             RefreshTokenRepositoryMock.Object,
-            UnitOfWorkMock.Object
+            UnitOfWorkMock.Object,
+            ConfigurationMock.Object // <-- MOCK DE CONFIGURATION ADICIONADO
         );
     }
 }
