@@ -20,6 +20,10 @@ public class ListProductsUseCase : IListProductsUseCase
             input.Page,
             input.PageSize,
             input.SearchTerm,
+            // --- FIX: Add the missing arguments for categoryId and brandId ---
+            input.CategoryId, 
+            input.BrandId,
+            // -----------------------------------------------------------------
             input.SortBy ?? "name",
             input.SortDirection ?? "asc",
             CancellationToken.None
