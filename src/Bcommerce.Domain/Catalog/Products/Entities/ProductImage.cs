@@ -28,6 +28,21 @@ public class ProductImage : Entity
         };
     }
 
+    // CORREÇÃO: Método 'With' para hidratação, agora com a assinatura correta de 6 parâmetros.
+    public static ProductImage With(Guid id, Guid productId, string imageUrl, string? altText, bool isCover, int sortOrder)
+    {
+        var image = new ProductImage
+        {
+            Id = id,
+            ProductId = productId,
+            ImageUrl = imageUrl,
+            AltText = altText,
+            IsCover = isCover,
+            SortOrder = sortOrder
+        };
+        return image;
+    }
+
     internal void SetCover(bool isCover) => IsCover = isCover;
 
     public override void Validate(IValidationHandler handler)

@@ -18,7 +18,7 @@ public class CartItem : Entity
     {
     }
 
-    internal static CartItem NewItem(Guid cartId, Guid productVariantId, int quantity, Money price)
+    public static CartItem NewItem(Guid cartId, Guid productVariantId, int quantity, Money price)
     {
         DomainException.ThrowWhen(quantity <= 0, "A quantidade deve ser maior que zero.");
 

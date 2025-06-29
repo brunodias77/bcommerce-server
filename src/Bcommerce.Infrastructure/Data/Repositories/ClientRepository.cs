@@ -91,26 +91,48 @@ public class ClientRepository : IClientRepository
         }, _uow.Transaction, cancellationToken: cancellationToken));
     }
         
+    private const string GetClientBaseSql = "SELECT * FROM clients WHERE deleted_at IS NULL";
+
     public async Task<Client?> Get(Guid id, CancellationToken cancellationToken)
     {
-        const string sql = "SELECT c.*, a.address_id as Id, a.*, sc.saved_card_id as Id, sc.* FROM clients c LEFT JOIN addresses a ON c.client_id = a.client_id AND a.deleted_at IS NULL LEFT JOIN saved_cards sc ON c.client_id = sc.client_id AND sc.deleted_at IS NULL WHERE c.client_id = @Id AND c.deleted_at IS NULL;";
+        var sql = $"{GetClientBaseSql} AND client_id = @Id;";
         return await QueryAndHydrateClient(sql, new { Id = id });
     }
+
     public async Task<Client?> GetByEmail(string email, CancellationToken cancellationToken)
     {
-        const string sql = "SELECT c.*, a.address_id as Id, a.*, sc.saved_card_id as Id, sc.* FROM clients c LEFT JOIN addresses a ON c.client_id = a.client_id AND a.deleted_at IS NULL LEFT JOIN saved_cards sc ON c.client_id = sc.client_id AND sc.deleted_at IS NULL WHERE c.email = @Email AND c.deleted_at IS NULL;";
+        var sql = $"{GetClientBaseSql} AND email = @Email;";
         return await QueryAndHydrateClient(sql, new { Email = email });
     }
+
     public async Task Delete(Client aggregate, CancellationToken cancellationToken)
     {
         const string sql = "UPDATE clients SET deleted_at = @Now, status = 'inativo' WHERE client_id = @Id;";
         await _uow.Connection.ExecuteAsync(new CommandDefinition(sql, new { aggregate.Id, Now = DateTime.UtcNow }, _uow.Transaction, cancellationToken: cancellationToken));
     }
+
     private async Task<Client?> QueryAndHydrateClient(string sql, object param)
     {
-        var clientDict = new Dictionary<Guid, Client>();
-        await _uow.Connection.QueryAsync<ClientDataModel, AddressDataModel, SavedCardDataModel, Client>(sql, (clientData, addressData, cardData) => { if (!clientDict.TryGetValue(clientData.client_id, out var client)) { client = HydrateClient(clientData); clientDict.Add(client.Id, client); } if (addressData != null && addressData.address_id != Guid.Empty && client.Addresses.All(a => a.Id != addressData.address_id)) { var address = HydrateAddress(addressData); client.AddAddress(address, Notification.Create()); } if (cardData != null && cardData.saved_card_id != Guid.Empty && client.SavedCards.All(sc => sc.Id != cardData.saved_card_id)) { var savedCard = HydrateSavedCard(cardData); client.AddSavedCard(savedCard.LastFourDigits, savedCard.Brand, savedCard.GatewayToken, savedCard.ExpiryDate, savedCard.Nickname); } return client; }, param, transaction: _uow.HasActiveTransaction ? _uow.Transaction : null, splitOn: "Id,Id");
-        return clientDict.Values.FirstOrDefault();
+        var clientData = await _uow.Connection.QueryFirstOrDefaultAsync<ClientDataModel>(sql, param, _uow.Transaction);
+        if (clientData is null) return null;
+
+        var client = HydrateClient(clientData);
+
+        const string addressesSql = "SELECT * FROM addresses WHERE client_id = @ClientId AND deleted_at IS NULL;";
+        var addressesData = await _uow.Connection.QueryAsync<AddressDataModel>(addressesSql, new { ClientId = client.Id }, _uow.Transaction);
+        foreach (var addressData in addressesData)
+        {
+            client.AddAddress(HydrateAddress(addressData), Notification.Create());
+        }
+
+        const string cardsSql = "SELECT * FROM saved_cards WHERE client_id = @ClientId AND deleted_at IS NULL;";
+        var cardsData = await _uow.Connection.QueryAsync<SavedCardDataModel>(cardsSql, new { ClientId = client.Id }, _uow.Transaction);
+        foreach (var cardData in cardsData)
+        {
+            client.AddSavedCard(cardData.last_four_digits, Enum.Parse<CardBrand>(cardData.brand, true), cardData.gateway_token, DateOnly.FromDateTime(cardData.expiry_date), cardData.nickname);
+        }
+
+        return client;
     }
     private static Client HydrateClient(ClientDataModel model)
     {

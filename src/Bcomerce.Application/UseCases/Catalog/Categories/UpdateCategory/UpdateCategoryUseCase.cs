@@ -3,6 +3,9 @@ using Bcommerce.Domain.Catalog.Categories.Repositories;
 using Bcommerce.Domain.Validation;
 using Bcommerce.Domain.Validation.Handlers;
 using Bcommerce.Infrastructure.Data.Repositories;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Bcomerce.Application.UseCases.Catalog.Categories.UpdateCategory;
 
@@ -27,8 +30,17 @@ public class UpdateCategoryUseCase : IUpdateCategoryUseCase
             notification.Append(new Error("Categoria não encontrada."));
             return Result<CategoryOutput, Notification>.Fail(notification);
         }
-        
-        // Atualiza a entidade de domínio com os novos dados
+
+        // --- LÓGICA DE VALIDAÇÃO DE NOME DUPLICADO CORRIGIDA ---
+        // Verifica se o nome foi alterado E se o novo nome já existe.
+        if (category.Name.ToLower() != input.Name.ToLower() && 
+            await _categoryRepository.ExistsWithNameAsync(input.Name, CancellationToken.None))
+        {
+            notification.Append(new Error($"Uma categoria com o nome '{input.Name}' já existe."));
+            return Result<CategoryOutput, Notification>.Fail(notification);
+        }
+        // --- FIM DA CORREÇÃO ---
+
         category.Update(input.Name, input.Description, input.SortOrder, notification);
 
         if (notification.HasError())
