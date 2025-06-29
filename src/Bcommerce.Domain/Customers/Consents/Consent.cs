@@ -14,7 +14,7 @@ public class Consent : Entity
 
     private Consent() { }
 
-    internal static Consent NewConsent(Guid clientId, ConsentType type, bool isGranted, string? termsVersion = null)
+    public static Consent NewConsent(Guid clientId, ConsentType type, bool isGranted, string? termsVersion = null)
     {
         return new Consent
         {
@@ -26,7 +26,7 @@ public class Consent : Entity
         };
     }
 
-    internal void Grant(string? termsVersion = null)
+    public void Grant(string? termsVersion = null)
     {
         if (IsGranted) return;
         IsGranted = true;
@@ -34,7 +34,7 @@ public class Consent : Entity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    internal void Revoke()
+    public void Revoke()
     {
         if (!IsGranted) return;
         IsGranted = false;

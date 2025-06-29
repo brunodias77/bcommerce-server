@@ -16,7 +16,9 @@ public class ProductRepository : IProductRepository
     {
         _uow = uow;
     }
-
+    
+    // ... todos os outros métodos do repositório permanecem os mesmos ...
+    
     public async Task<Product?> Get(Guid id, CancellationToken cancellationToken)
     {
         const string sql = @"
@@ -30,7 +32,7 @@ public class ProductRepository : IProductRepository
                 WHERE p.product_id = @Id AND p.deleted_at IS NULL;
             ";
 
-        var product = await QueryAndHydrateProduct(sql, new { Id = id });
+        var product = await QueryAndHydrateProducts(sql, new { Id = id });
         return product.FirstOrDefault();
     }
 
@@ -47,7 +49,7 @@ public class ProductRepository : IProductRepository
                 WHERE p.slug = @Slug AND p.deleted_at IS NULL;
             ";
 
-        var product = await QueryAndHydrateProduct(sql, new { Slug = slug });
+        var product = await QueryAndHydrateProducts(sql, new { Slug = slug });
         return product.FirstOrDefault();
     }
 
@@ -148,7 +150,7 @@ public class ProductRepository : IProductRepository
                 LEFT JOIN product_variants pv ON p.product_id = pv.product_id AND pv.deleted_at IS NULL
                 WHERE p.base_sku = @BaseSku AND p.deleted_at IS NULL;
             ";
-        var product = await QueryAndHydrateProduct(sql, new { BaseSku = baseSku });
+        var product = await QueryAndHydrateProducts(sql, new { BaseSku = baseSku });
         return product.FirstOrDefault();
     }
 
@@ -170,7 +172,7 @@ public class ProductRepository : IProductRepository
                 LIMIT @PageSize OFFSET @Offset;
             ";
 
-        return await QueryAndHydrateProduct(sql, new
+        return await QueryAndHydrateProducts(sql, new
         {
             Query = query,
             PageSize = pageSize,
@@ -207,7 +209,7 @@ public class ProductRepository : IProductRepository
             Offset = (page - 1) * pageSize 
         };
 
-        return await QueryAndHydrateProduct(fullQuery, parameters);
+        return await QueryAndHydrateProducts(fullQuery, parameters);
     }
 
     public async Task<int> CountAsync(string? searchTerm, Guid? categoryId, Guid? brandId, CancellationToken cancellationToken)
@@ -234,44 +236,32 @@ public class ProductRepository : IProductRepository
 
         return await _uow.Connection.ExecuteScalarAsync<int>(sql.ToString(), parameters);
     }
-
-    private async Task<IEnumerable<Product>> QueryAndHydrateProduct(string sql, object param)
+    
+    // HIDRATAÇÃO MULTI-QUERY (N+1 Otimizado)
+    private async Task<IEnumerable<Product>> QueryAndHydrateProducts(string sql, object param)
     {
-        var productDict = new Dictionary<Guid, Product>();
+        var productDataModels = (await _uow.Connection.QueryAsync<ProductDataModel>(sql, param, _uow.Transaction)).ToList();
+        if (!productDataModels.Any()) return Enumerable.Empty<Product>();
 
-        await _uow.Connection.QueryAsync<ProductDataModel, ProductImageDataModel, ProductVariantDataModel, Product>(
-            sql,
-            (productData, imageData, variantData) =>
-            {
-                if (!productDict.TryGetValue(productData.product_id, out var product))
-                {
-                    product = HydrateProduct(productData);
-                    productDict.Add(product.Id, product);
-                }
+        var productIds = productDataModels.Select(p => p.product_id).ToList();
 
-                if (imageData != null && product.Images.All(i => i.Id != imageData.product_image_id))
-                {
-                    var image = ProductImage.NewImage(imageData.product_id, imageData.image_url, imageData.alt_text, imageData.is_cover, imageData.sort_order);
-                    // Adicionando a imagem diretamente à coleção interna (uma alternativa à exposição de um método Add)
-                    (product.Images as List<ProductImage>)?.Add(image);
-                }
+        const string imagesSql = "SELECT * FROM product_images WHERE product_id = ANY(@ProductIds) AND deleted_at IS NULL ORDER BY sort_order;";
+        var imagesData = (await _uow.Connection.QueryAsync<ProductImageDataModel>(imagesSql, new { ProductIds = productIds }, _uow.Transaction))
+            .ToLookup(i => i.product_id);
 
-                if (variantData != null && product.Variants.All(v => v.Id != variantData.product_variant_id))
-                {
-                    // Adicionando a variante diretamente à coleção interna
-                    (product.Variants as List<ProductVariant>)?.Add(HydrateVariant(variantData));
-                }
+        const string variantsSql = "SELECT * FROM product_variants WHERE product_id = ANY(@ProductIds) AND deleted_at IS NULL;";
+        var variantsData = (await _uow.Connection.QueryAsync<ProductVariantDataModel>(variantsSql, new { ProductIds = productIds }, _uow.Transaction))
+            .ToLookup(v => v.product_id);
 
-                return product;
-            },
-            param,
-            transaction: _uow.HasActiveTransaction ? _uow.Transaction : null,
-            splitOn: "Id,Id"
-        );
-        return productDict.Values;
+        return productDataModels.Select(productData =>
+        {
+            var images = imagesData[productData.product_id].Select(HydrateImage).ToList();
+            var variants = variantsData[productData.product_id].Select(HydrateVariant).ToList();
+            return HydrateProduct(productData, images, variants);
+        });
     }
 
-    private static Product HydrateProduct(ProductDataModel model)
+    private static Product HydrateProduct(ProductDataModel model, List<ProductImage> images, List<ProductVariant> variants)
     {
         return Product.With(
             model.product_id, model.base_sku, model.name, model.slug, model.description,
@@ -281,8 +271,21 @@ public class ProductRepository : IProductRepository
             model.stock_quantity, model.is_active,
             Dimensions.Create(model.weight_kg, model.height_cm, model.width_cm, model.depth_cm),
             model.category_id, model.brand_id,
-            model.created_at, model.updated_at, // Parâmetros adicionados
-            new List<ProductImage>(), new List<ProductVariant>()
+            model.created_at, model.updated_at,
+            images, variants
+        );
+    }
+
+    private static ProductImage HydrateImage(ProductImageDataModel model)
+    {
+        // CORREÇÃO: A chamada agora corresponde à assinatura do método 'With' na entidade ProductImage
+        return ProductImage.With(
+            model.product_image_id, 
+            model.product_id, 
+            model.image_url, 
+            model.alt_text, 
+            model.is_cover, 
+            model.sort_order
         );
     }
 

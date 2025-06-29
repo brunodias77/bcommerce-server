@@ -17,7 +17,7 @@ public class Payment : Entity
 
     private Payment() { }
 
-    internal static Payment NewPayment(Guid orderId, Money amount, PaymentMethod method)
+    public static Payment NewPayment(Guid orderId, Money amount, PaymentMethod method)
     {
         return new Payment
         {
@@ -28,7 +28,7 @@ public class Payment : Entity
         };
     }
 
-    internal void MarkAsApproved(string transactionId)
+    public void MarkAsApproved(string transactionId)
     {
         DomainException.ThrowWhen(Status != PaymentStatus.Pending, "Só é possível aprovar um pagamento pendente.");
         Status = PaymentStatus.Approved;
@@ -36,11 +36,20 @@ public class Payment : Entity
         ProcessedAt = DateTime.UtcNow;
     }
 
-    internal void MarkAsDeclined()
+    public void MarkAsDeclined()
     {
         DomainException.ThrowWhen(Status != PaymentStatus.Pending, "Só é possível recusar um pagamento pendente.");
         Status = PaymentStatus.Declined;
         ProcessedAt = DateTime.UtcNow;
+    }
+
+    // --- NOVO MÉTODO ADICIONADO ---
+    public void MarkAsRefunded()
+    {
+        // Regra de negócio: Só pode reembolsar um pagamento que foi aprovado.
+        DomainException.ThrowWhen(Status != PaymentStatus.Approved, "Somente pagamentos aprovados podem ser reembolsados.");
+        Status = PaymentStatus.Refunded;
+        ProcessedAt = DateTime.UtcNow; // Atualiza a data do último processamento
     }
 
     public override void Validate(IValidationHandler handler) { /* Validações se necessário */ }
