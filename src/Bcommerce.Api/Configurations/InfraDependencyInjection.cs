@@ -4,7 +4,9 @@ using Bcommerce.Domain.Catalog.Categories.Repositories;
 using Bcommerce.Domain.Catalog.Products.Repositories;
 using Bcommerce.Domain.Common;
 using Bcommerce.Domain.Customers.Clients.Repositories;
+using Bcommerce.Domain.Marketing.Coupons.Repositories;
 using Bcommerce.Domain.Sales.Carts.Repositories;
+using Bcommerce.Domain.Sales.Orders.Repositories;
 using Bcommerce.Domain.Security;
 using Bcommerce.Domain.Services;
 using Bcommerce.Infrastructure.Data.Repositories;
@@ -39,7 +41,8 @@ public static class InfraDependencyInjection
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>(); // <-- ADICIONE ESTA LINHA
         services.AddScoped<IRevokedTokenRepository, RevokedTokenRepository>();
         services.AddScoped<ICartRepository, CartRepository>(); // <-- ADICIONE
-
+        services.AddScoped<IOrderRepository, OrderRepository>();
+        services.AddScoped<ICouponRepository, CouponRepository>(); 
     }
 
     private static void AddServices(IServiceCollection services, IConfiguration configuration)

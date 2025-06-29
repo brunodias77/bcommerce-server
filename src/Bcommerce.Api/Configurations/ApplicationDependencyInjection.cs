@@ -19,7 +19,12 @@ using Bcomerce.Application.UseCases.Catalog.Products.GetPublicProduct;
 using Bcomerce.Application.UseCases.Catalog.Products.ListProducts;
 using Bcomerce.Application.UseCases.Catalog.Products.ListPublicProducts;
 using Bcomerce.Application.UseCases.Catalog.Products.UpdateProduct;
+using Bcomerce.Application.UseCases.Marketing.Coupons.ApplyCoupon;
 using Bcomerce.Application.UseCases.Sales.Carts.AddItemToCart;
+using Bcomerce.Application.UseCases.Sales.Carts.GetCart;
+using Bcomerce.Application.UseCases.Sales.Carts.RemoveCartItem;
+using Bcomerce.Application.UseCases.Sales.Carts.UpdateCartItemQuantity;
+using Bcomerce.Application.UseCases.Sales.Orders.CreateOrder;
 using Bcommerce.Application.Events.Clients;
 using Bcommerce.Domain.Common;
 using Bcommerce.Domain.Customers.Clients.Events;
@@ -59,7 +64,11 @@ public static class ApplicationDependencyInjection
         services.AddScoped<IGetPublicProductBySlugUseCase, GetPublicProductBySlugUseCase>(); // <-- ADICIONE
         services.AddScoped<IListPublicProductsUseCase, ListPublicProductsUseCase>(); // <-- ADICIONE
         services.AddScoped<IAddItemToCartUseCase, AddItemToCartUseCase>(); // <-- ADICIONE
-
+        services.AddScoped<IGetCartUseCase, GetCartUseCase>();
+        services.AddScoped<IUpdateCartItemQuantityUseCase, UpdateCartItemQuantityUseCase>();
+        services.AddScoped<IRemoveCartItemUseCase, RemoveCartItemUseCase>();
+        services.AddScoped<ICreateOrderUseCase, CreateOrderUseCase>();
+        services.AddScoped<IApplyCouponUseCase, ApplyCouponUseCase>();
     }
 
     private static void AddEvents(IServiceCollection services, IConfiguration configuration)
