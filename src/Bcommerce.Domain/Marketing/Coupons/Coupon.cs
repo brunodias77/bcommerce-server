@@ -30,7 +30,7 @@ public class Coupon : AggregateRoot
         {
             Code = code,
             DiscountPercentage = percentage,
-            DiscountAmount = null,
+            DiscountAmount = null, // CORREÇÃO: Garante que o desconto por valor seja nulo.
             ValidFrom = validFrom,
             ValidUntil = validUntil,
             MaxUses = maxUses,
@@ -49,7 +49,7 @@ public class Coupon : AggregateRoot
         var coupon = new Coupon
         {
             Code = code,
-            DiscountPercentage = null,
+            DiscountPercentage = null, // CORREÇÃO: Garante que o desconto percentual seja nulo.
             DiscountAmount = amount,
             ValidFrom = validFrom,
             ValidUntil = validUntil,
@@ -75,8 +75,10 @@ public class Coupon : AggregateRoot
         if (DateTime.UtcNow < ValidFrom || DateTime.UtcNow > ValidUntil) return false;
         if (MaxUses.HasValue && TimesUsed >= MaxUses.Value) return false;
     
-        // CORREÇÃO: Verifica se MinPurchaseAmount não é nulo antes de usar.
-        if (MinPurchaseAmount != null && orderTotal.Amount < MinPurchaseAmount.Amount) return false;
+        if (MinPurchaseAmount is not null && orderTotal is not null && orderTotal.Amount < MinPurchaseAmount.Amount)
+        {
+            return false;
+        }
     
         if (Type == CouponType.UserSpecific && ClientId != orderClientId) return false;
 
@@ -91,7 +93,6 @@ public class Coupon : AggregateRoot
         }
         if (DiscountAmount != null)
         {
-            // Garante que o desconto não seja maior que o valor total da compra
             return Money.Create(Math.Min(orderTotal.Amount, DiscountAmount.Amount));
         }
         return Money.Create(0);
@@ -99,7 +100,6 @@ public class Coupon : AggregateRoot
 
     public void Use()
     {
-        // CORREÇÃO: Adicionada a validação que lança a exceção.
         DomainException.ThrowWhen(MaxUses.HasValue && TimesUsed >= MaxUses.Value, "Este cupom já atingiu o limite máximo de usos.");
         TimesUsed++;
     }
@@ -136,11 +136,27 @@ public class Coupon : AggregateRoot
 //
 //     public static Coupon NewPercentageCoupon(string code, decimal percentage, DateTime validFrom, DateTime validUntil, IValidationHandler handler, int? maxUses = null, Money? minPurchase = null, Guid? clientId = null)
 //     {
+//         // var coupon = new Coupon
+//         // {
+//         //     Code = code,
+//         //     DiscountPercentage = percentage,
+//         //     DiscountAmount = null,
+//         //     ValidFrom = validFrom,
+//         //     ValidUntil = validUntil,
+//         //     MaxUses = maxUses,
+//         //     MinPurchaseAmount = minPurchase,
+//         //     Type = clientId.HasValue ? CouponType.UserSpecific : CouponType.General,
+//         //     ClientId = clientId,
+//         //     IsActive = true,
+//         //     TimesUsed = 0
+//         // };
+//         // coupon.Validate(handler);
+//         // return coupon;
 //         var coupon = new Coupon
 //         {
 //             Code = code,
 //             DiscountPercentage = percentage,
-//             DiscountAmount = null,
+//             DiscountAmount = null, // CORREÇÃO: Deve ser nulo para não acionar a validação
 //             ValidFrom = validFrom,
 //             ValidUntil = validUntil,
 //             MaxUses = maxUses,
@@ -159,7 +175,7 @@ public class Coupon : AggregateRoot
 //         var coupon = new Coupon
 //         {
 //             Code = code,
-//             DiscountPercentage = null,
+//             DiscountPercentage = null, // CORREÇÃO: Deve ser nulo para não acionar a validação
 //             DiscountAmount = amount,
 //             ValidFrom = validFrom,
 //             ValidUntil = validUntil,
@@ -185,8 +201,12 @@ public class Coupon : AggregateRoot
 //         if (DateTime.UtcNow < ValidFrom || DateTime.UtcNow > ValidUntil) return false;
 //         if (MaxUses.HasValue && TimesUsed >= MaxUses.Value) return false;
 //     
-//         // CORREÇÃO: Verifica se MinPurchaseAmount não é nulo antes de usar.
-//         if (MinPurchaseAmount != null && orderTotal.Amount < MinPurchaseAmount.Amount) return false;
+//         // CORREÇÃO: Verificação mais robusta para evitar NullReferenceException.
+//         // Garante que ambos os objetos 'Money' existem antes de acessar suas propriedades 'Amount'.
+//         if (MinPurchaseAmount is not null && orderTotal is not null && orderTotal.Amount < MinPurchaseAmount.Amount)
+//         {
+//             return false;
+//         }
 //     
 //         if (Type == CouponType.UserSpecific && ClientId != orderClientId) return false;
 //
@@ -201,10 +221,12 @@ public class Coupon : AggregateRoot
 //         }
 //         if (DiscountAmount != null)
 //         {
+//             // Garante que o desconto não seja maior que o valor total da compra
 //             return Money.Create(Math.Min(orderTotal.Amount, DiscountAmount.Amount));
 //         }
 //         return Money.Create(0);
 //     }
+//
 //
 //     public void Use()
 //     {
@@ -216,3 +238,4 @@ public class Coupon : AggregateRoot
 //     public void Deactivate() => IsActive = false;
 //     public void Activate() => IsActive = true;
 // }
+//

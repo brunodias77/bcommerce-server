@@ -14,7 +14,8 @@ using Xunit;
 namespace Bcommerce.UnitTest.Domain.Entities.Orders
 {
     [CollectionDefinition(nameof(OrderTestFixture))]
-    public class OrderTestFixtureCollection : ICollectionFixture<ICollectionFixture<OrderTestFixture>> { }
+    // CORREÇÃO: A interface genérica foi simplificada para referenciar a classe da fixture diretamente.
+    public class OrderTestFixtureCollection : ICollectionFixture<OrderTestFixture> { }
 
     public class OrderTestFixture
     {
@@ -38,7 +39,6 @@ namespace Bcommerce.UnitTest.Domain.Entities.Orders
 
         public Address CreateValidAddress(Guid clientId, AddressType type = AddressType.Shipping)
         {
-            // CORREÇÃO: Usando um valor mais apropriado para bairro (neighborhood).
             return Address.NewAddress(
                 clientId, type, Faker.Address.ZipCode().Replace("-", ""), Faker.Address.StreetName(),
                 Faker.Random.Number(100, 999).ToString(), Faker.Address.SecondaryAddress(),
