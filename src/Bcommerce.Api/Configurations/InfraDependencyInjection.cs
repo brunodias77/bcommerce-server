@@ -42,13 +42,15 @@ public static class InfraDependencyInjection
         services.AddScoped<IRevokedTokenRepository, RevokedTokenRepository>();
         services.AddScoped<ICartRepository, CartRepository>(); // <-- ADICIONE
         services.AddScoped<IOrderRepository, OrderRepository>();
-        services.AddScoped<ICouponRepository, CouponRepository>(); 
+        services.AddScoped<ICouponRepository, CouponRepository>();
     }
 
     private static void AddServices(IServiceCollection services, IConfiguration configuration)
     {
         services.AddSingleton<IEmailService, ConsoleEmailService>(); // Singleton para o serviço de console
         services.AddScoped<ITokenService, JwtTokenService>();
+        // Para desenvolvimento, usamos o gateway falso. Em produção, trocaríamos esta linha.
+        services.AddScoped<IPaymentGateway, FakePaymentGateway>();
     }
 
     private static void AddPasswordEncrypter(IServiceCollection services, IConfiguration configuration)

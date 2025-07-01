@@ -25,6 +25,7 @@ using Bcomerce.Application.UseCases.Sales.Carts.GetCart;
 using Bcomerce.Application.UseCases.Sales.Carts.RemoveCartItem;
 using Bcomerce.Application.UseCases.Sales.Carts.UpdateCartItemQuantity;
 using Bcomerce.Application.UseCases.Sales.Orders.CreateOrder;
+using Bcomerce.Application.UseCases.Sales.Orders.ProcessPayment;
 using Bcommerce.Application.Events.Clients;
 using Bcommerce.Domain.Common;
 using Bcommerce.Domain.Customers.Clients.Events;
@@ -69,6 +70,8 @@ public static class ApplicationDependencyInjection
         services.AddScoped<IRemoveCartItemUseCase, RemoveCartItemUseCase>();
         services.AddScoped<ICreateOrderUseCase, CreateOrderUseCase>();
         services.AddScoped<IApplyCouponUseCase, ApplyCouponUseCase>();
+        services.AddScoped<IProcessPaymentUseCase, ProcessPaymentUseCase>();
+
     }
 
     private static void AddEvents(IServiceCollection services, IConfiguration configuration)

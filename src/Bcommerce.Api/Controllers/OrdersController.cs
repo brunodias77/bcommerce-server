@@ -1,6 +1,7 @@
 using Bcomerce.Application.UseCases.Marketing.Coupons.ApplyCoupon;
 using Bcomerce.Application.UseCases.Sales.Orders;
 using Bcomerce.Application.UseCases.Sales.Orders.CreateOrder;
+using Bcomerce.Application.UseCases.Sales.Orders.ProcessPayment;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -27,7 +28,7 @@ public class OrdersController : ControllerBase
 
         return BadRequest(new { errors = result.Error?.GetErrors() });
     }
-    
+
     [HttpPost("{orderId:guid}/apply-coupon")]
     [ProducesResponseType(typeof(OrderOutput), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(object), StatusCodes.Status400BadRequest)]
@@ -35,6 +36,25 @@ public class OrdersController : ControllerBase
         [FromRoute] Guid orderId,
         [FromBody] ApplyCouponInput input, // Recebe apenas o { "couponCode": "CODE" }
         [FromServices] IApplyCouponUseCase useCase)
+    {
+        var fullInput = input with { OrderId = orderId };
+        var result = await useCase.Execute(fullInput);
+
+        if (result.IsSuccess)
+        {
+            return Ok(result.Value);
+        }
+
+        return BadRequest(new { errors = result.Error?.GetErrors() });
+    }
+
+    [HttpPost("{orderId:guid}/pay")]
+    [ProducesResponseType(typeof(OrderOutput), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(object), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ProcessPayment(
+    [FromRoute] Guid orderId,
+    [FromBody] ProcessPaymentInput input, // Recebe o { "paymentMethodToken": "..." }
+    [FromServices] IProcessPaymentUseCase useCase)
     {
         var fullInput = input with { OrderId = orderId };
         var result = await useCase.Execute(fullInput);
