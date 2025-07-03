@@ -17,8 +17,6 @@ public class ProductRepository : IProductRepository
         _uow = uow;
     }
     
-    // ... todos os outros métodos do repositório permanecem os mesmos ...
-    
     public async Task<Product?> Get(Guid id, CancellationToken cancellationToken)
     {
         const string sql = @"
@@ -89,8 +87,6 @@ public class ProductRepository : IProductRepository
 
     public async Task Update(Product aggregate, CancellationToken cancellationToken)
     {
-        // Por enquanto, vamos atualizar apenas os dados da tabela principal 'products'.
-        // A atualização de imagens e variantes seria feita em UseCases específicos.
         const string productSql = @"
                 UPDATE products SET
                     name = @Name,
@@ -127,9 +123,6 @@ public class ProductRepository : IProductRepository
             Depth = aggregate.Dimensions.DepthCm,
             aggregate.UpdatedAt
         }, _uow.Transaction, cancellationToken: cancellationToken));
-
-        // A lógica de sincronizar coleções (imagens, variantes) seria mais complexa
-        // e viria aqui se necessário.
     }
 
     public Task Delete(Product aggregate, CancellationToken cancellationToken)
@@ -182,13 +175,10 @@ public class ProductRepository : IProductRepository
 
     public async Task<IEnumerable<Product>> ListAsync(int page, int pageSize, string? searchTerm, Guid? categoryId, Guid? brandId, string sortBy, string sortDirection, CancellationToken cancellationToken)
     {
-        // O código original já ignorava o SqlBuilder e usava esta query manual.
-        // A refatoração aqui é simplesmente remover o código morto do SqlBuilder.
         var validSortColumns = new Dictionary<string, string> { ["name"] = "p.name", ["price"] = "p.base_price" };
         var orderBy = validSortColumns.ContainsKey(sortBy.ToLower()) ? validSortColumns[sortBy.ToLower()] : "p.name";
         var direction = sortDirection.Equals("desc", StringComparison.OrdinalIgnoreCase) ? "DESC" : "ASC";
-
-        // NOTA: A query original para hidratação completa foi mantida, conforme a lógica do código anterior.
+        
         var fullQuery = @"
         SELECT p.*, pi.product_image_id as Id, pi.*, pv.product_variant_id as Id, pv.*
         FROM products p
@@ -214,7 +204,6 @@ public class ProductRepository : IProductRepository
 
     public async Task<int> CountAsync(string? searchTerm, Guid? categoryId, Guid? brandId, CancellationToken cancellationToken)
     {
-        // Refatorado para usar StringBuilder e DynamicParameters, removendo o SqlBuilder.
         var sql = new StringBuilder("SELECT COUNT(p.product_id) FROM products p WHERE p.deleted_at IS NULL AND p.is_active = TRUE");
         var parameters = new DynamicParameters();
 
@@ -237,20 +226,22 @@ public class ProductRepository : IProductRepository
         return await _uow.Connection.ExecuteScalarAsync<int>(sql.ToString(), parameters);
     }
     
-    // HIDRATAÇÃO MULTI-QUERY (N+1 Otimizado)
     private async Task<IEnumerable<Product>> QueryAndHydrateProducts(string sql, object param)
     {
-        var productDataModels = (await _uow.Connection.QueryAsync<ProductDataModel>(sql, param, _uow.Transaction)).ToList();
+        // *** CORREÇÃO APLICADA AQUI ***
+        var transaction = _uow.HasActiveTransaction ? _uow.Transaction : null;
+
+        var productDataModels = (await _uow.Connection.QueryAsync<ProductDataModel>(sql, param, transaction)).ToList();
         if (!productDataModels.Any()) return Enumerable.Empty<Product>();
 
         var productIds = productDataModels.Select(p => p.product_id).ToList();
 
         const string imagesSql = "SELECT * FROM product_images WHERE product_id = ANY(@ProductIds) AND deleted_at IS NULL ORDER BY sort_order;";
-        var imagesData = (await _uow.Connection.QueryAsync<ProductImageDataModel>(imagesSql, new { ProductIds = productIds }, _uow.Transaction))
+        var imagesData = (await _uow.Connection.QueryAsync<ProductImageDataModel>(imagesSql, new { ProductIds = productIds }, transaction))
             .ToLookup(i => i.product_id);
 
         const string variantsSql = "SELECT * FROM product_variants WHERE product_id = ANY(@ProductIds) AND deleted_at IS NULL;";
-        var variantsData = (await _uow.Connection.QueryAsync<ProductVariantDataModel>(variantsSql, new { ProductIds = productIds }, _uow.Transaction))
+        var variantsData = (await _uow.Connection.QueryAsync<ProductVariantDataModel>(variantsSql, new { ProductIds = productIds }, transaction))
             .ToLookup(v => v.product_id);
 
         return productDataModels.Select(productData =>
@@ -278,7 +269,6 @@ public class ProductRepository : IProductRepository
 
     private static ProductImage HydrateImage(ProductImageDataModel model)
     {
-        // CORREÇÃO: A chamada agora corresponde à assinatura do método 'With' na entidade ProductImage
         return ProductImage.With(
             model.product_image_id, 
             model.product_id, 

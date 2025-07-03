@@ -113,20 +113,23 @@ public class ClientRepository : IClientRepository
 
     private async Task<Client?> QueryAndHydrateClient(string sql, object param)
     {
-        var clientData = await _uow.Connection.QueryFirstOrDefaultAsync<ClientDataModel>(sql, param, _uow.Transaction);
+        // *** CORREÇÃO APLICADA AQUI ***
+        var transaction = _uow.HasActiveTransaction ? _uow.Transaction : null;
+
+        var clientData = await _uow.Connection.QueryFirstOrDefaultAsync<ClientDataModel>(sql, param, transaction);
         if (clientData is null) return null;
 
         var client = HydrateClient(clientData);
 
         const string addressesSql = "SELECT * FROM addresses WHERE client_id = @ClientId AND deleted_at IS NULL;";
-        var addressesData = await _uow.Connection.QueryAsync<AddressDataModel>(addressesSql, new { ClientId = client.Id }, _uow.Transaction);
+        var addressesData = await _uow.Connection.QueryAsync<AddressDataModel>(addressesSql, new { ClientId = client.Id }, transaction);
         foreach (var addressData in addressesData)
         {
             client.AddAddress(HydrateAddress(addressData), Notification.Create());
         }
 
         const string cardsSql = "SELECT * FROM saved_cards WHERE client_id = @ClientId AND deleted_at IS NULL;";
-        var cardsData = await _uow.Connection.QueryAsync<SavedCardDataModel>(cardsSql, new { ClientId = client.Id }, _uow.Transaction);
+        var cardsData = await _uow.Connection.QueryAsync<SavedCardDataModel>(cardsSql, new { ClientId = client.Id }, transaction);
         foreach (var cardData in cardsData)
         {
             client.AddSavedCard(cardData.last_four_digits, Enum.Parse<CardBrand>(cardData.brand, true), cardData.gateway_token, DateOnly.FromDateTime(cardData.expiry_date), cardData.nickname);

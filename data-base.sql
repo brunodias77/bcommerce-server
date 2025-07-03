@@ -674,20 +674,80 @@ COMMIT;
 -- Descrição: Fones de ouvido e dispositivos de som
 
 
-INSERT INTO categories (name, slug, description, sort_order) VALUES
-('Smartphones', 'smartphones', 'Celulares de última geração', 10),
-('Tablets', 'tablets', 'Dispositivos portáteis', 20),
-('Notebooks', 'notebooks', 'Computadores portáteis', 30),
-('Acessórios', 'acessorios', 'Complementos para dispositivos', 40),
-('Wearables', 'wearables', 'Dispositivos vestíveis', 50),
-('Áudio', 'audio', 'Dispositivos de som', 60);
+-- 1. Inserir categorias principais
+INSERT INTO categories (category_id, name, slug, description, is_active, sort_order) 
+VALUES 
+('c9f0595e-8e83-4a6b-85c3-8f1e7c5d6a3a', 'Smartphones', 'smartphones', 'Celulares de última geração', true, 10),
+('a8b3c7d2-1e4f-4a9d-b6c8-9f0a1b2c3d4e', 'Tablets', 'tablets', 'Dispositivos portáteis para produtividade e entretenimento', true, 20),
+('f5e6d7c8-b9a0-4b1c-8d2e-3f4a5b6c7d8e', 'Notebooks', 'notebooks', 'Computadores portáteis para trabalho e estudo', true, 30),
+('d4e5f6a7-b8c9-4d0e-9f1a-2b3c4d5e6f7a', 'Acessórios', 'acessorios', 'Complementos para seus dispositivos', true, 40),
+('b3c4d5e6-f7a8-49b0-c1d2-3e4f5a6b7c8d', 'Wearables', 'wearables', 'Dispositivos vestíveis e smartwatches', true, 50),
+('e2f3a4b5-c6d7-48e9-f0a1-b2c3d4e5f6a7', 'Áudio', 'audio', 'Fones de ouvido e dispositivos de som', true, 60);
 
--- Inserção das marcas Apple, Samsung e Xiaomi
-INSERT INTO brands (name, slug, description, logo_url, is_active) 
+-- 2. Inserir marcas
+INSERT INTO brands (brand_id, name, slug, description, logo_url, is_active) 
 VALUES
-('Apple', 'apple', 'Tecnologia inovadora e design premium', 'https://exemplo.com/logos/apple.png', TRUE),
-('Samsung', 'samsung', 'Inovação e qualidade para todos os dispositivos', 'https://exemplo.com/logos/samsung.png', TRUE),
-('Xiaomi', 'xiaomi', 'Tecnologia de alta qualidade a preços acessíveis', 'https://exemplo.com/logos/xiaomi.png', TRUE);
+('aa11bb22-cc33-44dd-ee55-ff66aa77bb88', 'Apple', 'apple', 'Tecnologia inovadora e design premium', 'https://exemplo.com/logos/apple.png', true),
+('bb22cc33-dd44-55ee-ff66-aa77bb88cc99', 'Samsung', 'samsung', 'Inovação e qualidade para todos os dispositivos', 'https://exemplo.com/logos/samsung.png', true),
+('cc33dd44-ee55-66ff-aa77-bb88cc99ddaa', 'Xiaomi', 'xiaomi', 'Tecnologia de alta qualidade a preços acessíveis', 'https://exemplo.com/logos/xiaomi.png', true);
+
+-- 3. Inserir produtos Apple
+INSERT INTO products (product_id, base_sku, name, slug, description, category_id, brand_id, base_price, stock_quantity, is_active) 
+VALUES
+('a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d', 'AP-IPH13-128', 'iPhone 13', 'iphone-13', 'iPhone 13 com tela Super Retina XDR de 6.1 polegadas', 'c9f0595e-8e83-4a6b-85c3-8f1e7c5d6a3a', 'aa11bb22-cc33-44dd-ee55-ff66aa77bb88', 4999.00, 100, true),
+('b2c3d4e5-f6a7-4b6c-9d0e-1f2a3b4c5d6e', 'AP-IPADPRO', 'iPad Pro 11"', 'ipad-pro-11', 'iPad Pro com chip M1 e tela Liquid Retina', 'a8b3c7d2-1e4f-4a9d-b6c8-9f0a1b2c3d4e', 'aa11bb22-cc33-44dd-ee55-ff66aa77bb88', 7999.00, 50, true),
+('c3d4e5f6-a7b8-4c7d-8e9f-0a1b2c3d4e5f', 'AP-MACBOOKAIR', 'MacBook Air M2', 'macbook-air-m2', 'MacBook Air com chip M2 e tela Retina de 13.6"', 'f5e6d7c8-b9a0-4b1c-8d2e-3f4a5b6c7d8e', 'aa11bb22-cc33-44dd-ee55-ff66aa77bb88', 8999.00, 30, true),
+('d4e5f6a7-b8c9-4d8e-9f0a-1b2c3d4e5f6a', 'AP-AIRPODSPRO', 'AirPods Pro', 'airpods-pro', 'Fones de ouvido com cancelamento de ruído ativo', 'e2f3a4b5-c6d7-48e9-f0a1-b2c3d4e5f6a7', 'aa11bb22-cc33-44dd-ee55-ff66aa77bb88', 2199.00, 200, true);
+
+-- 4. Inserir produtos Samsung
+INSERT INTO products (product_id, base_sku, name, slug, description, category_id, brand_id, base_price, stock_quantity, is_active) 
+VALUES
+('e5f6a7b8-c9d0-4e9f-8a1b-2c3d4e5f6a7b', 'SS-S23ULTRA', 'Galaxy S23 Ultra', 'galaxy-s23-ultra', 'Smartphone premium com câmera de 200MP', 'c9f0595e-8e83-4a6b-85c3-8f1e7c5d6a3a', 'bb22cc33-dd44-55ee-ff66-aa77bb88cc99', 6999.00, 80, true),
+('f6a7b8c9-d0e1-4f9a-8b2c-3d4e5f6a7b8c', 'SS-TABS8', 'Galaxy Tab S8', 'galaxy-tab-s8', 'Tablet com S Pen incluído e processador Snapdragon', 'a8b3c7d2-1e4f-4a9d-b6c8-9f0a1b2c3d4e', 'bb22cc33-dd44-55ee-ff66-aa77bb88cc99', 5499.00, 40, true),
+('a7b8c9d0-e1f2-4a9b-8c3d-4e5f6a7b8c9d', 'SS-BOOK2PRO', 'Galaxy Book2 Pro', 'galaxy-book2-pro', 'Notebook ultrafino com tela AMOLED', 'f5e6d7c8-b9a0-4b1c-8d2e-3f4a5b6c7d8e', 'bb22cc33-dd44-55ee-ff66-aa77bb88cc99', 7999.00, 25, true),
+('b8c9d0e1-f2a3-4b9c-8d4e-5f6a7b8c9d0e', 'SS-BUDS2PRO', 'Galaxy Buds2 Pro', 'galaxy-buds2-pro', 'Fones de ouvido com áudio de alta qualidade', 'e2f3a4b5-c6d7-48e9-f0a1-b2c3d4e5f6a7', 'bb22cc33-dd44-55ee-ff66-aa77bb88cc99', 1299.00, 150, true);
+
+-- 5. Inserir produtos Xiaomi
+INSERT INTO products (product_id, base_sku, name, slug, description, category_id, brand_id, base_price, stock_quantity, is_active) 
+VALUES
+('c9d0e1f2-a3b4-4c9d-8e5f-6a7b8c9d0e1f', 'XM-13PRO', 'Xiaomi 13 Pro', 'xiaomi-13-pro', 'Smartphone com câmera Leica e Snapdragon 8 Gen 2', 'c9f0595e-8e83-4a6b-85c3-8f1e7c5d6a3a', 'cc33dd44-ee55-66ff-aa77-bb88cc99ddaa', 5999.00, 120, true),
+('d0e1f2a3-b4c5-4d9e-8f6a-7b8c9d0e1f2a', 'XM-PAD5', 'Xiaomi Pad 5', 'xiaomi-pad-5', 'Tablet com tela de 120Hz e alto-falantes quad', 'a8b3c7d2-1e4f-4a9d-b6c8-9f0a1b2c3d4e', 'cc33dd44-ee55-66ff-aa77-bb88cc99ddaa', 2999.00, 60, true),
+('e1f2a3b4-c5d6-4e9f-8a7b-8c9d0e1f2a3b', 'XM-NOTEBOOK', 'Xiaomi Notebook Pro', 'xiaomi-notebook-pro', 'Notebook com tela 3.5K OLED e processador Intel', 'f5e6d7c8-b9a0-4b1c-8d2e-3f4a5b6c7d8e', 'cc33dd44-ee55-66ff-aa77-bb88cc99ddaa', 6999.00, 35, true),
+('f2a3b4c5-d6e7-4f9a-8b8c-9d0e1f2a3b4c', 'XM-BUDS3PRO', 'Xiaomi Buds 3 Pro', 'xiaomi-buds-3-pro', 'Fones de ouvido com cancelamento de ruído híbrido', 'e2f3a4b5-c6d7-48e9-f0a1-b2c3d4e5f6a7', 'cc33dd44-ee55-66ff-aa77-bb88cc99ddaa', 899.00, 180, true);
+
+-- 6. Inserir cores para variações
+INSERT INTO colors (color_id, name, hex_code, is_active) 
+VALUES
+('11111111-2222-3333-4444-555555555555', 'Preto', '#000000', true),
+('22222222-3333-4444-5555-666666666666', 'Branco', '#FFFFFF', true),
+('33333333-4444-5555-6666-777777777777', 'Azul', '#0000FF', true);
+
+-- 7. Inserir tamanhos para variações
+INSERT INTO sizes (size_id, name, size_code, is_active) 
+VALUES
+('44444444-5555-6666-7777-888888888888', '128GB', '128', true),
+('55555555-6666-7777-8888-999999999999', '256GB', '256', true),
+('66666666-7777-8888-9999-000000000000', '512GB', '512', true);
+
+-- 8. Criar variações para um produto (ex: iPhone 13)
+INSERT INTO product_variants (product_variant_id, product_id, sku, color_id, size_id, stock_quantity, additional_price) 
+VALUES
+(gen_random_uuid(), 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d', 'AP-IPH13-128-BLK', '11111111-2222-3333-4444-555555555555', '44444444-5555-6666-7777-888888888888', 40, 0),
+(gen_random_uuid(), 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d', 'AP-IPH13-128-WHT', '22222222-3333-4444-5555-666666666666', '44444444-5555-6666-7777-888888888888', 35, 0),
+(gen_random_uuid(), 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d', 'AP-IPH13-256-BLU', '33333333-4444-5555-6666-777777777777', '55555555-6666-7777-8888-999999999999', 25, 500.00);
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 UPDATE clients
 SET
